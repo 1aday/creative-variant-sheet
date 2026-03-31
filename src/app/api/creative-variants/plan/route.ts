@@ -14,6 +14,9 @@ const MAX_PLANNED_VARIANT_COUNT = 5;
 const MIN_PLANNED_VARIANT_COUNT = 1;
 const CEREBRAS_PLANNER_MAX_COMPLETION_TOKENS = 4096;
 const PLANNER_MODEL_TIMEOUT_MS = 45_000;
+const DEFAULT_PLANNER_MODEL =
+  process.env.CEREBRAS_PLANNER_MODEL?.trim() || "qwen-3-235b-a22b-instruct-2507";
+const PLANNER_MODEL_FALLBACKS = ["qwen-3-235b-a22b-instruct-2507", "llama3.1-8b"] as const;
 const ASPECT_RATIOS = ["match_input_image"] as const;
 const TEST_PATTERNS = [
   "same_message_different_audiences",
@@ -449,6 +452,16 @@ const readCompletionText = (content: unknown): string => {
     .trim();
 };
 
+const getPlannerModels = (): string[] => {
+  const candidates = [DEFAULT_PLANNER_MODEL, ...PLANNER_MODEL_FALLBACKS];
+  return Array.from(new Set(candidates.map((model) => model.trim()).filter(Boolean)));
+};
+
+const shouldTryNextPlannerModel = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /(does not exist|do not have access|not supported|unsupported|invalid model|404)/i.test(message);
+};
+
 export async function POST(request: NextRequest) {
   try {
     if (!cerebras) {
@@ -494,31 +507,51 @@ export async function POST(request: NextRequest) {
       "Rely only on the product name, category, tags, and the user's testing goal.",
     ].join("\n");
 
-    const completion = await withTimeout(
-      cerebras.chat.completions.create({
-        model: "gpt-oss-120b",
-        temperature: 1,
-        top_p: 1,
-        max_completion_tokens: CEREBRAS_PLANNER_MAX_COMPLETION_TOKENS,
-        reasoning_effort: "low",
-        response_format: {
-          type: "json_schema",
-          json_schema: plannerSchema,
-        },
-        messages: [
-          {
-            role: "system",
-            content: PLANNER_SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: plannerPrompt,
-          },
-        ],
-      }) as Promise<PlannerCompletion>,
-      PLANNER_MODEL_TIMEOUT_MS,
-      "GPT OSS planner timed out. Retry the request.",
-    );
+    let completion: PlannerCompletion | null = null;
+    let resolvedPlannerModel = "";
+    let lastPlannerError: unknown = null;
+
+    for (const plannerModel of getPlannerModels()) {
+      try {
+        completion = await withTimeout(
+          cerebras.chat.completions.create({
+            model: plannerModel,
+            temperature: 1,
+            top_p: 1,
+            max_completion_tokens: CEREBRAS_PLANNER_MAX_COMPLETION_TOKENS,
+            response_format: {
+              type: "json_schema",
+              json_schema: plannerSchema,
+            },
+            messages: [
+              {
+                role: "system",
+                content: PLANNER_SYSTEM_PROMPT,
+              },
+              {
+                role: "user",
+                content: plannerPrompt,
+              },
+            ],
+          }) as Promise<PlannerCompletion>,
+          PLANNER_MODEL_TIMEOUT_MS,
+          "Creative planner timed out. Retry the request.",
+        );
+        resolvedPlannerModel = plannerModel;
+        break;
+      } catch (error) {
+        lastPlannerError = error;
+        if (!shouldTryNextPlannerModel(error)) {
+          throw error;
+        }
+      }
+    }
+
+    if (!completion) {
+      throw lastPlannerError instanceof Error
+        ? lastPlannerError
+        : new Error("No accessible Cerebras planner model is configured.");
+    }
 
     const choice = completion.choices[0];
     if (!choice) {
@@ -564,13 +597,13 @@ export async function POST(request: NextRequest) {
       ),
       testPattern: normalizeTestPattern(parsedRecord?.testPattern),
       variants: normalizedVariants,
-      model: "gpt-oss-120b",
+      model: resolvedPlannerModel,
       plannerProvider: "cerebras",
       promptDebug: {
         system: PLANNER_SYSTEM_PROMPT,
         user: plannerPrompt,
         plannerProvider: "cerebras",
-        plannerModel: "gpt-oss-120b",
+        plannerModel: resolvedPlannerModel,
       },
     });
   } catch (error) {
