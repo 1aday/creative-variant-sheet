@@ -3,8 +3,6 @@
 import {
   AlertCircle,
   ArrowUp,
-  ChevronLeft,
-  ChevronRight,
   Copy,
   ImageUp,
   LoaderCircle,
@@ -132,7 +130,7 @@ const cardCompactTitleClass =
 const cardCompactBodyClass =
   "text-[0.8rem] leading-5 text-[var(--ink-body)]";
 const plannerInputClassName =
-  "h-11 w-full border border-[rgba(18,28,20,0.14)] bg-white px-4 text-[0.94rem] text-[var(--ink-strong)] outline-none shadow-[0_12px_24px_-24px_rgba(18,28,20,0.45)] transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--accent-strong)] focus:shadow-[0_18px_30px_-26px_rgba(18,28,20,0.55)]";
+  "min-h-[108px] w-full resize-none border border-[rgba(18,28,20,0.22)] bg-white px-4 py-3 text-[0.98rem] leading-6 text-[var(--ink-strong)] outline-none shadow-[0_22px_42px_-30px_rgba(18,28,20,0.44)] transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--accent-strong)] focus:shadow-[0_26px_48px_-30px_rgba(18,28,20,0.56)]";
 
 const sourceOptions: DemoSource[] = [
   {
@@ -221,11 +219,6 @@ const variantSeeds: VariantSeed[] = [
     accentColor: "#DAB8B4",
   },
 ];
-
-const inputClassName =
-  "h-11 w-full border border-[var(--line-subtle)] bg-white px-3 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]";
-const textAreaClassName =
-  "min-h-[112px] w-full resize-none border border-[var(--line-subtle)] bg-white px-3 py-3 text-sm leading-6 text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]";
 
 function hashString(value: string) {
   let hash = 0;
@@ -877,47 +870,6 @@ export function CreativeVariantsDemo() {
     );
   };
 
-  const updateRow = (
-    rowId: string,
-    field:
-      | "variantName"
-      | "audience"
-      | "painPoint"
-      | "language"
-      | "bodyCopy"
-      | "cta"
-      | "scene"
-      | "words"
-      | "primaryColor"
-      | "accentColor"
-      | "promptText",
-    value: string,
-  ) => {
-    setRows((currentRows) => {
-      return currentRows.map((row) => {
-        if (row.id !== rowId) return row;
-
-        const nextRow: DemoRow = {
-          ...row,
-          [field]: value,
-        };
-
-        if (field === "promptText") {
-          nextRow.promptState = "ready";
-          nextRow.promptProvider = "local";
-          nextRow.promptError = null;
-        } else {
-          nextRow.promptState = "idle";
-          nextRow.status = "draft";
-          nextRow.imageUrl = null;
-          nextRow.errorMessage = null;
-        }
-
-        return nextRow;
-      });
-    });
-  };
-
   const resolvePromptForRow = (rowId: string, source: DemoSource, planner: string): string => {
     const row = rowsRef.current.find((candidate) => candidate.id === rowId);
     if (!row) return "";
@@ -1267,23 +1219,19 @@ export function CreativeVariantsDemo() {
     const plannerSnapshot = plannerInput;
 
     try {
-      let successCount = 0;
-      let failureCount = 0;
+      const results = await Promise.all(
+        rowsRef.current.map((row) =>
+          generateImageForRow(row.id, {
+            silent: true,
+            source: sourceSnapshot,
+            planner: plannerSnapshot,
+            sourceImageInput: sourceImageSnapshot,
+          }),
+        ),
+      );
 
-      for (const row of rowsRef.current) {
-        const didSucceed = await generateImageForRow(row.id, {
-          silent: true,
-          source: sourceSnapshot,
-          planner: plannerSnapshot,
-          sourceImageInput: sourceImageSnapshot,
-        });
-
-        if (didSucceed) {
-          successCount += 1;
-        } else {
-          failureCount += 1;
-        }
-      }
+      const successCount = results.filter(Boolean).length;
+      const failureCount = results.length - successCount;
 
       setActivity({
         tone: failureCount > 0 ? "error" : "default",
@@ -1358,20 +1306,9 @@ export function CreativeVariantsDemo() {
     }
   };
 
-  const handleSelectAdjacentRow = (direction: -1 | 1) => {
-    if (activeRowIndex < 0) return;
-
-    const nextIndex = Math.min(rows.length - 1, Math.max(0, activeRowIndex + direction));
-    const nextRow = rows[nextIndex];
-
-    if (nextRow?.id && nextRow.id !== activeRowId) {
-      setActiveRowId(nextRow.id);
-    }
-  };
-
   return (
-    <div className="space-y-5">
-      <div className="space-y-2">
+    <div className="space-y-4">
+      <div className="space-y-1.5">
         <div className="flex items-end justify-between gap-3 sm:hidden">
           <div>
             <p className="type-section-copy text-sm">
@@ -1384,7 +1321,7 @@ export function CreativeVariantsDemo() {
         </div>
 
         <div ref={rowStripRef} className="-mx-2 overflow-x-auto px-2 pb-2 sm:-mx-3 sm:px-3">
-          <div className="flex min-w-max snap-x snap-proximity gap-4">
+          <div className="flex min-w-max snap-x snap-proximity gap-3">
             <input
               ref={sourceFileInputRef}
               type="file"
@@ -1611,48 +1548,94 @@ export function CreativeVariantsDemo() {
         </div>
       </div>
 
-      <div className="border border-[var(--line-subtle)] bg-[var(--surface-muted)] p-3 sm:p-4">
-        <div className="mt-3 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_auto_auto] xl:items-end">
-          <div className="space-y-2">
-            <span className="type-meta">Reference</span>
-            <div className="flex h-11 items-center border border-[var(--line-subtle)] bg-white px-3 text-sm text-[var(--ink-strong)]">
-              {selectedSource.name}
+      <div className="sticky top-3 z-20 border border-[rgba(18,28,20,0.18)] bg-[linear-gradient(180deg,rgba(246,241,235,0.98),rgba(243,239,233,0.96))] p-3 shadow-[0_22px_44px_-30px_rgba(18,28,20,0.42)] backdrop-blur-sm sm:top-4 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1 space-y-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="type-chip ui-border inline-flex h-6 items-center border border-[var(--accent-strong)] bg-white px-2.5 text-[var(--accent-strong)]">
+                Start here
+              </span>
+              <span className="type-meta">Reference: {selectedSource.name}</span>
+              <span className="type-meta">{rows.length} rows</span>
             </div>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <p className="text-[1.02rem] font-semibold tracking-[-0.02em] text-[var(--ink-strong)]">
+                  Describe the casting directions you want to generate.
+                </p>
+                <p className="type-section-copy text-sm">
+                  Write the mix you want, then run the planner to refresh every row from that brief.
+                </p>
+              </div>
+
+              <label className="block space-y-2">
+                <span className="type-meta">Planner prompt</span>
+                <div className="border border-[rgba(18,28,20,0.12)] bg-white p-2 shadow-[0_14px_28px_-26px_rgba(18,28,20,0.45)]">
+                  <textarea
+                    value={plannerInput}
+                    onChange={(event) => setPlannerInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+                      event.preventDefault();
+                      void handlePlannerApply();
+                    }}
+                    className={plannerInputClassName}
+                    placeholder="Describe the next set of creative directions."
+                    disabled={isBusy}
+                  />
+                </div>
+              </label>
+            </div>
+
+            <p className="type-section-copy text-sm">
+              Press Enter to run. Use Shift+Enter if you want to add another line first.
+            </p>
           </div>
 
-          <label className="space-y-2">
-            <span className="type-meta">Planner prompt</span>
-            <input
-              value={plannerInput}
-              onChange={(event) => setPlannerInput(event.target.value)}
-              className={plannerInputClassName}
-              placeholder="Describe the next set of creative directions."
+          <div className="grid gap-2 sm:grid-cols-2 xl:w-[220px] xl:grid-cols-1 xl:shrink-0">
+            <Button
+              onClick={() => void handlePlannerApply()}
+              className="type-button-label ui-button-primary h-11 w-full rounded-none px-5"
               disabled={isBusy}
-            />
-          </label>
+            >
+              {isPlanning ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              {isPlanning ? "Creating prompts..." : isPlanRevealing ? "Revealing..." : "Create prompts"}
+            </Button>
 
-          <Button
-            onClick={() => void handlePlannerApply()}
-            className="type-button-label ui-button-primary h-11 w-full rounded-none px-5 xl:w-auto xl:self-end"
-            disabled={isBusy}
-          >
-            {isPlanning ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            {isPlanning ? "Creating prompts..." : isPlanRevealing ? "Revealing..." : "Create prompts"}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => void handleGenerateAll()}
-            className="type-button-label ui-button-secondary h-11 w-full rounded-none border bg-transparent px-5 xl:w-auto xl:self-end"
-            disabled={!rows.length || isBusy}
-          >
-            {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-            {isGeneratingAll ? "Generating..." : "Generate all"}
-          </Button>
+            <Button
+              variant="outline"
+              onClick={() => void handleGenerateAll()}
+              className="type-button-label ui-button-secondary h-11 w-full rounded-none border bg-transparent px-5"
+              disabled={!rows.length || isBusy}
+            >
+              {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+              {isGeneratingAll ? "Generating..." : "Generate all"}
+            </Button>
+          </div>
         </div>
 
-        {generatedAssets.length ? (
-          <div className="mt-3 border-t border-[var(--line-subtle)] pt-3">
+        {activity.text ? (
+          <div
+            className={`mt-3 flex items-start gap-2 border px-3 py-2.5 text-sm ${
+              activity.tone === "error"
+                ? "border-[#d8c5bc] bg-[#fbf3ef] text-[#7d4434]"
+                : "border-[var(--line-subtle)] bg-white text-[var(--ink-body)]"
+            }`}
+          >
+            {activity.tone === "error" ? (
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--accent-strong)]" />
+            )}
+            <span>{activity.text}</span>
+          </div>
+        ) : null}
+      </div>
+
+      {generatedAssets.length ? (
+        <div className="border border-[var(--line-subtle)] bg-[var(--surface-muted)] p-3 sm:p-4">
+          <div>
             <div className="flex items-center justify-between gap-3">
               <p className="type-meta">Reuse generated assets</p>
               <p className="type-meta">{generatedAssets.length} available</p>
@@ -1704,169 +1687,9 @@ export function CreativeVariantsDemo() {
               </div>
             </div>
           </div>
-        ) : null}
-
-        {activity.text ? (
-          <div
-            className={`mt-3 flex items-start gap-2 border px-3 py-2.5 text-sm ${
-              activity.tone === "error"
-                ? "border-[#d8c5bc] bg-[#fbf3ef] text-[#7d4434]"
-                : "border-[var(--line-subtle)] bg-white text-[var(--ink-body)]"
-            }`}
-          >
-            {activity.tone === "error" ? (
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            ) : (
-              <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--accent-strong)]" />
-            )}
-            <span>{activity.text}</span>
-          </div>
-        ) : null}
-      </div>
-
-      {activeRow ? (
-        <div className="border border-[var(--line-subtle)] bg-white p-3 sm:p-4">
-          <div className="flex flex-col gap-2 border-b border-[var(--line-subtle)] pb-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[1.65rem] font-semibold leading-[0.96] tracking-[-0.05em] text-[var(--ink-strong)]">
-              {activeRow.variantName}
-            </p>
-
-            <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
-              <p className="type-meta whitespace-nowrap">
-                {activeRowIndex + 1}
-                {" / "}
-                {rows.length}
-              </p>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSelectAdjacentRow(-1)}
-                  className="type-button-label h-8 rounded-none border bg-transparent px-2.5"
-                  disabled={activeRowIndex <= 0 || isBusy}
-                >
-                  <ChevronLeft className="size-4" />
-                  Prev
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSelectAdjacentRow(1)}
-                  className="type-button-label h-8 rounded-none border bg-transparent px-2.5"
-                  disabled={activeRowIndex >= rows.length - 1 || isBusy}
-                >
-                  Next
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2.5 lg:grid-cols-4">
-            <label className="space-y-2">
-              <span className="type-meta">Variant name</span>
-              <input
-                value={activeRow.variantName}
-                onChange={(event) => updateRow(activeRow.id, "variantName", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="type-meta">Audience</span>
-              <input
-                value={activeRow.audience}
-                onChange={(event) => updateRow(activeRow.id, "audience", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="type-meta">Pain point</span>
-              <input
-                value={activeRow.painPoint}
-                onChange={(event) => updateRow(activeRow.id, "painPoint", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="type-meta">Language</span>
-              <input
-                value={activeRow.language}
-                onChange={(event) => updateRow(activeRow.id, "language", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2 lg:col-span-2">
-              <span className="type-meta">Body copy</span>
-              <textarea
-                value={activeRow.bodyCopy}
-                onChange={(event) => updateRow(activeRow.id, "bodyCopy", event.target.value)}
-                className={textAreaClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2 lg:col-span-2">
-              <span className="type-meta">Keywords</span>
-              <input
-                value={activeRow.words}
-                onChange={(event) => updateRow(activeRow.id, "words", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="type-meta">Primary color</span>
-              <div className="flex h-11 items-center gap-3 border border-[var(--line-subtle)] bg-white px-3">
-                <input
-                  type="color"
-                  value={activeRow.primaryColor}
-                  onChange={(event) => updateRow(activeRow.id, "primaryColor", event.target.value)}
-                  className="size-7 cursor-pointer border-0 bg-transparent p-0"
-                  disabled={isBusy}
-                />
-                <span className="type-section-copy text-sm uppercase">{activeRow.primaryColor}</span>
-              </div>
-            </label>
-
-            <label className="space-y-2">
-              <span className="type-meta">Accent color</span>
-              <div className="flex h-11 items-center gap-3 border border-[var(--line-subtle)] bg-white px-3">
-                <input
-                  type="color"
-                  value={activeRow.accentColor}
-                  onChange={(event) => updateRow(activeRow.id, "accentColor", event.target.value)}
-                  className="size-7 cursor-pointer border-0 bg-transparent p-0"
-                  disabled={isBusy}
-                />
-                <span className="type-section-copy text-sm uppercase">{activeRow.accentColor}</span>
-              </div>
-            </label>
-
-            <label className="space-y-2 lg:col-span-4">
-              <span className="type-meta">Image prompt</span>
-              <textarea
-                value={activeRow.promptText}
-                onChange={(event) => updateRow(activeRow.id, "promptText", event.target.value)}
-                className="min-h-[120px] w-full resize-none border border-[var(--line-subtle)] bg-white px-3 py-3 text-sm leading-6 text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]"
-                disabled={isBusy}
-              />
-            </label>
-          </div>
         </div>
       ) : null}
+
     </div>
   );
 }
