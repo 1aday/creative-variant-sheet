@@ -146,12 +146,8 @@ const PLAN_REVEAL_MAX_DELAY_MS = 420;
 const PLAN_REVEAL_SETTLE_MS = 60;
 const MAX_SOURCE_UPLOAD_DIMENSION = 1600;
 const MAX_SOURCE_UPLOAD_DATA_URL_LENGTH = 3_500_000;
-const cardMetaLabelClass =
-  "text-[9px] uppercase tracking-[0.16em] text-[var(--ink-subtle)]";
 const cardCompactTitleClass =
   "text-[0.92rem] font-semibold leading-[1.18] tracking-[-0.02em] text-[var(--ink-strong)]";
-const cardCompactBodyClass =
-  "text-[0.8rem] leading-5 text-[var(--ink-body)]";
 const plannerInputClassName =
   "min-h-[108px] w-full resize-none border border-[rgba(18,28,20,0.22)] bg-white px-4 py-3 text-[0.98rem] leading-6 text-[var(--ink-strong)] outline-none shadow-[0_22px_42px_-30px_rgba(18,28,20,0.44)] transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--accent-strong)] focus:shadow-[0_26px_48px_-30px_rgba(18,28,20,0.56)]";
 
@@ -1438,16 +1434,10 @@ export function CreativeVariantsDemo() {
               <div className="relative overflow-hidden border-b border-[var(--line-subtle)] bg-slate-100">
                 <SourcePreview source={selectedSource} imageSrc={selectedSourcePreviewImageSrc} />
               </div>
-              <div className="flex min-h-[214px] flex-1 flex-col justify-between gap-3 p-3">
+              <div className="flex min-h-[170px] flex-1 flex-col justify-between gap-3 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="type-chip ui-border inline-flex h-6 items-center border px-2.5">Source</span>
                   <span className="type-meta">{currentSourceBadge}</span>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="type-meta">Reference</p>
-                  <h3 className={cardCompactTitleClass}>{selectedSource.name}</h3>
-                  <p className={cardCompactBodyClass}>{selectedSource.descriptor}</p>
                 </div>
 
                 {currentSourceNote ? (
@@ -1535,7 +1525,7 @@ export function CreativeVariantsDemo() {
                   </button>
                 </div>
 
-                <div className="flex min-h-[188px] flex-1 flex-col gap-2.5 p-2.5">
+                <div className="flex min-h-[156px] flex-1 flex-col gap-2.5 p-2.5">
                   {isPlannerCardQueuedForReveal ? (
                     <div className="space-y-2">
                       <div className="h-[62px] animate-pulse border border-[var(--line-subtle)] bg-[var(--surface-base)]" />
@@ -1554,13 +1544,6 @@ export function CreativeVariantsDemo() {
                       </motion.div>
                     </>
                   )}
-
-                  <div className="grid gap-2 border-t border-[var(--line-subtle)] pt-2.5">
-                    <div className="min-w-0">
-                      <p className={cardMetaLabelClass}>Audience</p>
-                      <p className={`${cardCompactBodyClass} mt-1 truncate`}>{row.audience}</p>
-                    </div>
-                  </div>
 
                   <div className="mt-auto flex flex-nowrap items-center gap-1.5 border-t border-[var(--line-subtle)] pt-2.5">
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -1639,26 +1622,14 @@ export function CreativeVariantsDemo() {
       <div className="sticky top-3 z-20 border border-[rgba(18,28,20,0.18)] bg-[linear-gradient(180deg,rgba(246,241,235,0.98),rgba(243,239,233,0.96))] p-3 shadow-[0_22px_44px_-30px_rgba(18,28,20,0.42)] backdrop-blur-sm sm:top-4 sm:p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1 space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="type-chip ui-border inline-flex h-6 items-center border border-[var(--accent-strong)] bg-white px-2.5 text-[var(--accent-strong)]">
-                Start here
-              </span>
-              <span className="type-meta">Reference: {selectedSource.name}</span>
-              <span className="type-meta">{rows.length} rows</span>
-            </div>
-
             <div className="space-y-2">
               <div className="space-y-1">
                 <p className="text-[1.02rem] font-semibold tracking-[-0.02em] text-[var(--ink-strong)]">
                   Describe the casting directions you want to generate.
                 </p>
-                <p className="type-section-copy text-sm">
-                  Write the mix you want, then run the planner to refresh every row from that brief.
-                </p>
               </div>
 
-              <label className="block space-y-2">
-                <span className="type-meta">Planner prompt</span>
+              <label className="block">
                 <div className="border border-[rgba(18,28,20,0.12)] bg-white p-2 shadow-[0_14px_28px_-26px_rgba(18,28,20,0.45)]">
                   <textarea
                     value={plannerInput}
@@ -1729,16 +1700,10 @@ export function CreativeVariantsDemo() {
                 <div className="relative overflow-hidden border-b border-[var(--line-subtle)] bg-slate-100">
                   <SourcePreview source={selectedSource} imageSrc={archivedRound.sourceImageSrc} />
                 </div>
-                <div className="flex min-h-[188px] flex-1 flex-col justify-between gap-3 p-3">
+                <div className="flex min-h-[156px] flex-1 flex-col justify-between gap-3 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="type-chip ui-border inline-flex h-6 items-center border px-2.5">Source</span>
                     <span className="type-meta">{archivedRound.sourceBadge}</span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="type-meta">Reference</p>
-                    <h3 className={cardCompactTitleClass}>{selectedSource.name}</h3>
-                    <p className={cardCompactBodyClass}>{selectedSource.descriptor}</p>
                   </div>
 
                   {archivedRound.sourceNote ? (
@@ -1764,13 +1729,6 @@ export function CreativeVariantsDemo() {
                   <div className="flex min-h-[188px] flex-1 flex-col gap-2.5 p-2.5">
                     <div className="border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3 py-2.5">
                       <h3 className={cardCompactTitleClass}>{row.variantName}</h3>
-                    </div>
-
-                    <div className="grid gap-2 border-t border-[var(--line-subtle)] pt-2.5">
-                      <div className="min-w-0">
-                        <p className={cardMetaLabelClass}>Audience</p>
-                        <p className={`${cardCompactBodyClass} mt-1 truncate`}>{row.audience}</p>
-                      </div>
                     </div>
                   </div>
                 </div>
