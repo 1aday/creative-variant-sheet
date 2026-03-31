@@ -165,6 +165,7 @@ const PLANNER_SYSTEM_PROMPT = [
   "Extract the primary change axis from the user goal and build the requested variants as a targeted sweep across concrete values for that axis.",
   "For each variant, generate a concrete imageModelPrompt that can be sent directly to an image model for editing the reference image.",
   "When user asks to vary one attribute (color, material, background, text, pose, etc), keep everything else stable and only change that attribute per variant.",
+  "If the requested axis is casting or demographics, keep framing, proof layout, product usage cues, and lighting stable while changing only age, gender presentation, and race as directed.",
   "Never inject platform/app brand identity (e.g., AdStyle, Adstyles) or UI theme colors unless explicitly provided in user input.",
   "Return strict JSON only that matches the provided schema and contains no extra keys.",
 ].join(" ");
@@ -248,7 +249,8 @@ const buildPlannerUserPrompt = (params: {
     "10) imageModelPrompt must be a direct instruction for image editing using the reference image, explicitly stating what to change and what to keep fixed.",
     "11) If user requested one specific change axis, vary only that axis across variants and keep all other visual factors consistent.",
     "12) promptSections must be practical building blocks for image generation prompts.",
-    "13) Return JSON only. No preamble, no markdown, no code fences, no explanation.",
+    "13) If the user is testing model demographics, keep composition, crop, skincare application, and proof text treatment stable while varying casting attributes only.",
+    "14) Return JSON only. No preamble, no markdown, no code fences, no explanation.",
     "",
     "JSON response format example:",
     JSON.stringify(
@@ -555,7 +557,7 @@ export async function POST(request: NextRequest) {
 
     const choice = completion.choices[0];
     if (!choice) {
-      return NextResponse.json({ error: "No response from GPT OSS" }, { status: 502 });
+      return NextResponse.json({ error: "No response from planner model" }, { status: 502 });
     }
 
     const choiceMessage = asRecord(choice.message);

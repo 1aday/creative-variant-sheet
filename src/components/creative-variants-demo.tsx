@@ -119,7 +119,7 @@ type PlanResponse = {
 
 const MAX_ROWS = 5;
 const DEFAULT_PROMPT =
-  "Plan a premium launch mix with one lifestyle angle, one offer push, and one social-first concept.";
+  "Create a skincare casting test that keeps the ad layout consistent while changing the model's age, gender, and race across the variants.";
 const PLAN_REVEAL_BASE_DELAY_MS = 120;
 const PLAN_REVEAL_PER_GLYPH_MS = 16;
 const PLAN_REVEAL_MAX_DELAY_MS = 420;
@@ -137,108 +137,89 @@ const plannerInputClassName =
 
 const sourceOptions: DemoSource[] = [
   {
-    id: "serum",
-    name: "Luma Serum",
+    id: "casting-test",
+    name: "Radiance Cream Casting Test",
     category: "Skin care",
-    descriptor: "Brightening bottle with a premium finish",
-    tags: ["Premium", "Clean", "Direct response"],
-    referenceImagePath: "/creative-variants/serum-source.png",
+    descriptor: "Close-up skincare ad with a model, cheek cream swipe, and clinical proof text overlay",
+    tags: ["Casting test", "Skin care", "Proof-led"],
+    referenceImagePath: "/creative-variants/casting-source.webp",
     background:
-      "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.82), transparent 28%), linear-gradient(145deg, #f7efe6 0%, #f1d5bf 44%, #d67f53 100%)",
-    primaryColor: "#C56A3D",
-    accentColor: "#F6E3CF",
-  },
-  {
-    id: "headphones",
-    name: "Echo Headphones",
-    category: "Consumer tech",
-    descriptor: "Studio headphones for focus-heavy work",
-    tags: ["Performance", "Lifestyle", "Launch"],
-    referenceImagePath: "/creative-variants/headphones-source.png",
-    background:
-      "radial-gradient(circle at 78% 22%, rgba(161,213,255,0.42), transparent 24%), linear-gradient(145deg, #0f172a 0%, #1d4ed8 48%, #38bdf8 100%)",
-    primaryColor: "#183B87",
-    accentColor: "#7DD3FC",
-  },
-  {
-    id: "bottle",
-    name: "Atlas Bottle",
-    category: "Wellness",
-    descriptor: "Insulated bottle built for movement",
-    tags: ["UGC", "Retention", "Offer"],
-    referenceImagePath: "/creative-variants/bottle-source.png",
-    background:
-      "radial-gradient(circle at 24% 18%, rgba(255,255,255,0.5), transparent 26%), linear-gradient(140deg, #0f3d31 0%, #1b7d63 48%, #9ed8c3 100%)",
-    primaryColor: "#0F5D48",
-    accentColor: "#9ED8C3",
+      "radial-gradient(circle at 18% 14%, rgba(255,255,255,0.72), transparent 28%), linear-gradient(145deg, #f3d5c7 0%, #dbb3a7 44%, #bea0bb 100%)",
+    primaryColor: "#D09A7A",
+    accentColor: "#D3B2C8",
   },
 ];
 
 const variantSeeds: VariantSeed[] = [
   {
-    id: "benefit",
-    keywords: ["benefit", "core", "performance"],
-    variantName: "Core Benefit",
-    audience: "Broad performance audience",
-    painPoint: "Needs a clear reason to care in the first scroll",
-    bodyCopy: "Lead with the clearest outcome and make the value visible in the opening frame.",
-    cta: "Shop now",
-    scene: "Clean studio pedestal",
-    words: "Benefit first, premium, direct response",
-    primaryColor: "#1E3A8A",
-    accentColor: "#F97316",
+    id: "young-woman",
+    keywords: ["young", "woman", "female", "gen z", "age", "gender", "race", "casting"],
+    variantName: "Young Woman 20s",
+    audience: "Women 20-29",
+    painPoint: "Needs talent that feels closer to a younger skin-care shopper",
+    bodyCopy:
+      "Recast the image with a woman in her early 20s and preserve the same close crop, cheek cream swipe, soft lighting, and proof-led layout.",
+    cta: "See results",
+    scene: "Same close-up beauty crop with a fresher youthful casting",
+    words: "Young adult, female, fresh skin, casting test, proof-led",
+    primaryColor: "#C78672",
+    accentColor: "#E8C9C1",
   },
   {
-    id: "lifestyle",
-    keywords: ["lifestyle", "routine", "real", "daily"],
-    variantName: "Lifestyle Proof",
-    audience: "Busy professionals",
-    painPoint: "Needs to see the product fit a real routine",
-    bodyCopy: "Place the product in a believable day-in-the-life setting with softer framing.",
-    cta: "See how",
-    scene: "Morning routine counter",
-    words: "Authentic, social proof, daily use",
-    primaryColor: "#7C3AED",
-    accentColor: "#FB7185",
+    id: "black-woman",
+    keywords: ["black", "woman", "female", "race", "casting", "representation"],
+    variantName: "Black Woman 30s",
+    audience: "Women 28-40",
+    painPoint: "Needs more culturally resonant casting and representation",
+    bodyCopy:
+      "Swap the model to a Black woman in her 30s with rich skin tone and natural texture while keeping the skincare cream placement, framing, and text area stable.",
+    cta: "Shop routine",
+    scene: "Same proof-driven beauty close-up with a confident Black female model",
+    words: "Black woman, 30s, radiant skin, representation, skincare ad",
+    primaryColor: "#8C5A4A",
+    accentColor: "#E9C5AD",
   },
   {
-    id: "offer",
-    keywords: ["offer", "discount", "urgency", "promo"],
-    variantName: "Offer Push",
-    audience: "Price-sensitive shoppers",
-    painPoint: "Needs urgency before acting",
-    bodyCopy: "Push the value proposition harder and let the offer do more of the persuasion.",
-    cta: "Get offer",
-    scene: "Retail shelf close-up",
-    words: "Urgency, conversion, contrast",
-    primaryColor: "#111827",
-    accentColor: "#60A5FA",
+    id: "asian-man",
+    keywords: ["asian", "man", "male", "gender", "race", "casting"],
+    variantName: "East Asian Man 30s",
+    audience: "Men 28-38",
+    painPoint: "Needs male casting without losing the premium skincare tone",
+    bodyCopy:
+      "Change the model to an East Asian man in his early 30s, keeping the same crop, editorial softness, cheek cream gesture, and premium skin finish.",
+    cta: "Try the formula",
+    scene: "Same tight beauty portrait with male skincare casting",
+    words: "East Asian man, male grooming, 30s, skincare, controlled test",
+    primaryColor: "#AF7D67",
+    accentColor: "#D8B5AE",
   },
   {
-    id: "ugc",
-    keywords: ["ugc", "social", "creator", "mobile"],
-    variantName: "UGC Style",
-    audience: "Social-first mobile users",
-    painPoint: "Distrusts polished ads and wants it to feel native",
-    bodyCopy: "Keep the framing looser and more candid so the creative feels social instead of staged.",
-    cta: "Try it",
-    scene: "Street-level candid shot",
-    words: "UGC feel, mobile native, scroll stopper",
-    primaryColor: "#9A3412",
-    accentColor: "#F43F5E",
+    id: "mature-woman",
+    keywords: ["mature", "older", "woman", "50", "age", "casting"],
+    variantName: "Mature Woman 50+",
+    audience: "Women 50+",
+    painPoint: "Needs casting that signals credibility for a more mature customer",
+    bodyCopy:
+      "Recast the ad with a woman in her 50s or early 60s and keep the same skincare application cue, soft retouching level, and proof-focused composition intact.",
+    cta: "See smoother skin",
+    scene: "Same clinical beauty portrait with mature female casting",
+    words: "Mature woman, 50 plus, radiant skin, trust, proof-led",
+    primaryColor: "#A97262",
+    accentColor: "#E3C5BF",
   },
   {
-    id: "editorial",
-    keywords: ["premium", "editorial", "luxury"],
-    variantName: "Premium Editorial",
-    audience: "High-intent premium buyers",
-    painPoint: "Needs stronger quality signals before purchase",
-    bodyCopy: "Use tighter composition and a calmer palette so the product reads as more considered.",
-    cta: "Explore",
-    scene: "Editorial desk setup",
-    words: "Editorial, polished, premium",
-    primaryColor: "#0F172A",
-    accentColor: "#A78BFA",
+    id: "south-asian-woman",
+    keywords: ["south asian", "woman", "female", "race", "casting", "representation"],
+    variantName: "South Asian Woman 40s",
+    audience: "Women 35-45",
+    painPoint: "Needs casting that broadens representation without changing the ad system",
+    bodyCopy:
+      "Swap to a South Asian woman in her 40s and keep the exact same portrait scale, cream swipe placement, soft peach palette, and conversion-oriented proof copy area.",
+    cta: "Explore results",
+    scene: "Same proof-led skincare crop with South Asian female casting",
+    words: "South Asian woman, 40s, inclusive casting, skincare, premium",
+    primaryColor: "#B37B66",
+    accentColor: "#DAB8B4",
   },
 ];
 
@@ -246,8 +227,6 @@ const inputClassName =
   "h-11 w-full border border-[var(--line-subtle)] bg-white px-3 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]";
 const textAreaClassName =
   "min-h-[112px] w-full resize-none border border-[var(--line-subtle)] bg-white px-3 py-3 text-sm leading-6 text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]";
-const selectClassName =
-  "h-11 w-full border border-[var(--line-subtle)] bg-white px-3 text-sm text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]";
 
 function hashString(value: string) {
   let hash = 0;
@@ -286,8 +265,8 @@ function buildLocalImagePrompt(
   plannerPrompt: string,
 ) {
   const parts = [
-    `Create a premium ${source.category.toLowerCase()} advertising image for ${source.name}.`,
-    `Product: ${source.descriptor}.`,
+    `Create a premium ${source.category.toLowerCase()} advertising variation using the reference image as the base.`,
+    `Source concept: ${source.descriptor}.`,
     plannerPrompt ? `Campaign brief: ${plannerPrompt}.` : "",
     `Creative angle: ${row.variantName}.`,
     `Audience: ${row.audience}.`,
@@ -297,7 +276,9 @@ function buildLocalImagePrompt(
     `Visual story: ${row.bodyCopy}.`,
     `Keywords: ${row.words}.`,
     `CTA energy: ${row.cta}.`,
-    "Keep the product prominent, social-ready, sharply lit, and free of logos, watermarks, or interface chrome.",
+    "Keep the close facial crop, cheek cream application, soft skincare lighting, and proof-led ad composition consistent unless the variant explicitly changes them.",
+    "Treat model demographics as the intended test axis when requested: update age, gender presentation, and race only as directed while preserving realistic skin texture and editorial polish.",
+    "Keep the final image free of logos, watermarks, or interface chrome.",
   ];
 
   return parts.join(" ").replace(/\s+/g, " ").trim();
@@ -537,7 +518,7 @@ function getPromptProviderLabel(row: DemoRow) {
   if (row.promptState === "generating") return "Writing prompt";
   if (row.promptState === "error") return "Prompt issue";
   if (row.promptState === "idle") return "Prompt stale";
-  if (row.promptProvider === "cerebras") return "GPT OSS prompt";
+  if (row.promptProvider === "cerebras") return "Planner prompt";
   return "Manual prompt";
 }
 
@@ -751,7 +732,6 @@ function VariantPreview({
 
 export function CreativeVariantsDemo() {
   const initialRows = buildPromptPlan(DEFAULT_PROMPT, sourceOptions[0], "plan-0");
-  const [selectedSourceId, setSelectedSourceId] = useState(sourceOptions[0].id);
   const [roundSeedImage, setRoundSeedImage] = useState<RoundSeedImage | null>(null);
   const [generatedAssets, setGeneratedAssets] = useState<GeneratedAsset[]>([]);
   const [uploadedSourceImage, setUploadedSourceImage] = useState<UploadedSourceImage | null>(null);
@@ -770,15 +750,12 @@ export function CreativeVariantsDemo() {
   });
   const planCounterRef = useRef(1);
   const manualCounterRef = useRef(1);
-  const sourceSelectRef = useRef<HTMLSelectElement | null>(null);
   const sourceFileInputRef = useRef<HTMLInputElement | null>(null);
   const rowStripRef = useRef<HTMLDivElement | null>(null);
   const rowCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const rowsRef = useRef(rows);
 
-  const selectedSource = useMemo(() => {
-    return sourceOptions.find((source) => source.id === selectedSourceId) ?? sourceOptions[0];
-  }, [selectedSourceId]);
+  const selectedSource = sourceOptions[0];
   const selectedSourcePreviewImageSrc = useMemo(() => {
     return roundSeedImage?.previewSrc || resolveSourcePreviewImageSrc(selectedSource, uploadedSourceImage);
   }, [roundSeedImage, selectedSource, uploadedSourceImage]);
@@ -1161,7 +1138,7 @@ export function CreativeVariantsDemo() {
 
       const payload = (await response.json().catch(() => ({}))) as PlanResponse;
       if (!response.ok) {
-        throw new Error(payload.error || "Failed to generate GPT OSS prompts");
+        throw new Error(payload.error || "Failed to generate planner prompts");
       }
 
       const plannedVariants = Array.isArray(payload.variants) ? payload.variants : [];
@@ -1221,46 +1198,18 @@ export function CreativeVariantsDemo() {
       setIsPlanRevealing(false);
       setActivity({
         tone: "default",
-        text: `GPT OSS drafted ${plannedRows.length} prompt${plannedRows.length === 1 ? "" : "s"} with a staged reveal.`,
+        text: `Drafted ${plannedRows.length} prompt${plannedRows.length === 1 ? "" : "s"} with a staged reveal.`,
       });
     } catch (error) {
       setIsPlanRevealing(false);
       setPlannerRevealIndex(-1);
       setActivity({
         tone: "error",
-        text: error instanceof Error ? error.message : "Failed to generate GPT OSS prompts",
+        text: error instanceof Error ? error.message : "Failed to generate planner prompts",
       });
     } finally {
       setIsPlanning(false);
     }
-  };
-
-  const handleSourceChange = (sourceId: string) => {
-    if (isBusy) return;
-
-    const nextSource = sourceOptions.find((source) => source.id === sourceId);
-    if (!nextSource) return;
-
-    setSelectedSourceId(sourceId);
-    setRoundSeedImage(null);
-    setGeneratedAssets([]);
-    setUploadedSourceImage(null);
-    if (sourceFileInputRef.current) {
-      sourceFileInputRef.current.value = "";
-    }
-    const planKey = `plan-${planCounterRef.current}`;
-    planCounterRef.current += 1;
-    const nextRows = buildPromptPlan(plannerInput, nextSource, planKey);
-
-    startTransition(() => {
-      setRows(nextRows);
-      setActiveRowId(nextRows[0]?.id ?? "");
-    });
-
-    setActivity({
-      tone: "default",
-      text: "Source swapped. Draft fresh GPT OSS prompts for this product, then generate new passes.",
-    });
   };
 
   const handleUploadSourceImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1280,7 +1229,7 @@ export function CreativeVariantsDemo() {
       resetRenderedRows();
       setActivity({
         tone: "default",
-        text: "Uploaded source image is now the active Gemini reference for every row.",
+        text: "Uploaded source image is now the active reference for every row.",
       });
     } catch (error) {
       setActivity({
@@ -1711,22 +1660,12 @@ export function CreativeVariantsDemo() {
         </div>
 
         <div className="mt-4 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_auto_auto] xl:items-end">
-          <label className="space-y-2">
-            <span className="type-meta">Source</span>
-            <select
-              ref={sourceSelectRef}
-              value={selectedSourceId}
-              onChange={(event) => handleSourceChange(event.target.value)}
-              className={selectClassName}
-              disabled={isBusy}
-            >
-              {sourceOptions.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {source.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="space-y-2">
+            <span className="type-meta">Reference</span>
+            <div className="flex h-11 items-center border border-[var(--line-subtle)] bg-white px-3 text-sm text-[var(--ink-strong)]">
+              {selectedSource.name}
+            </div>
+          </div>
 
           <label className="space-y-2">
             <span className="type-meta">Planner prompt</span>
