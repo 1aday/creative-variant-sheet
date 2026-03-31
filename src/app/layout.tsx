@@ -27,7 +27,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Creative Variant Sheet",
+  title: "Creative Variant Factory",
   description:
     "A standalone creative variant planning and image generation app for turning one product image into multiple testable ad directions.",
 };
