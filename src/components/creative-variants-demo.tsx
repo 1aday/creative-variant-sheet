@@ -149,7 +149,7 @@ const MAX_SOURCE_UPLOAD_DATA_URL_LENGTH = 3_500_000;
 const cardCompactTitleClass =
   "text-[0.92rem] font-semibold leading-[1.18] tracking-[-0.02em] text-[var(--ink-strong)]";
 const plannerInputClassName =
-  "min-h-[108px] w-full resize-none border border-[rgba(18,28,20,0.22)] bg-white px-4 py-3 text-[0.98rem] leading-6 text-[var(--ink-strong)] outline-none shadow-[0_22px_42px_-30px_rgba(18,28,20,0.44)] transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--accent-strong)] focus:shadow-[0_26px_48px_-30px_rgba(18,28,20,0.56)]";
+  "min-h-[116px] w-full resize-none border border-[rgba(47,107,79,0.14)] bg-[rgba(255,255,255,0.9)] px-4 py-3 text-[0.98rem] leading-6 text-[var(--ink-strong)] outline-none transition placeholder:text-[var(--ink-subtle)] focus:border-[var(--accent-strong)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(47,107,79,0.08)]";
 
 const sourceOptions: DemoSource[] = [
   {
@@ -1619,59 +1619,55 @@ export function CreativeVariantsDemo() {
         </div>
       </div>
 
-      <div className="sticky top-3 z-20 border border-[rgba(18,28,20,0.18)] bg-[linear-gradient(180deg,rgba(246,241,235,0.98),rgba(243,239,233,0.96))] p-3 shadow-[0_22px_44px_-30px_rgba(18,28,20,0.42)] backdrop-blur-sm sm:top-4 sm:p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1 space-y-2.5">
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <p className="text-[1.02rem] font-semibold tracking-[-0.02em] text-[var(--ink-strong)]">
-                  Describe the casting directions you want to generate.
-                </p>
-              </div>
+      <div className="sticky top-3 z-20 border border-[rgba(47,107,79,0.16)] bg-[linear-gradient(180deg,rgba(230,238,229,0.96),rgba(243,239,233,0.98))] p-3 shadow-[0_24px_46px_-32px_rgba(18,28,20,0.4)] backdrop-blur-sm sm:top-4 sm:p-4">
+        <div className="space-y-2.5">
+          <p className="text-[1.02rem] font-semibold tracking-[-0.02em] text-[var(--ink-strong)]">
+            Describe the casting directions you want to generate.
+          </p>
 
-              <label className="block">
-                <div className="border border-[rgba(18,28,20,0.12)] bg-white p-2 shadow-[0_14px_28px_-26px_rgba(18,28,20,0.45)]">
-                  <textarea
-                    value={plannerInput}
-                    onChange={(event) => setPlannerInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
-                      event.preventDefault();
-                      void handlePlannerApply();
-                    }}
-                    className={plannerInputClassName}
-                    placeholder="Describe the next set of creative directions."
-                    disabled={isBusy}
-                  />
-                </div>
+          <div className="overflow-hidden border border-[rgba(47,107,79,0.14)] bg-[rgba(255,255,255,0.56)] shadow-[0_16px_30px_-24px_rgba(18,28,20,0.22)]">
+            <div className="flex flex-col lg:flex-row lg:items-stretch">
+              <label className="min-w-0 flex-1 p-2.5 sm:p-3">
+                <textarea
+                  value={plannerInput}
+                  onChange={(event) => setPlannerInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+                    event.preventDefault();
+                    void handlePlannerApply();
+                  }}
+                  className={plannerInputClassName}
+                  placeholder="Describe the next set of creative directions."
+                  disabled={isBusy}
+                />
               </label>
+
+              <div className="grid gap-2 border-t border-[rgba(47,107,79,0.12)] bg-[rgba(223,231,223,0.72)] p-2.5 sm:grid-cols-2 sm:p-3 lg:w-[238px] lg:grid-cols-1 lg:border-l lg:border-t-0">
+                <Button
+                  onClick={() => void handlePlannerApply()}
+                  className="type-button-label ui-button-primary h-10 w-full justify-center rounded-none px-4"
+                  disabled={isBusy}
+                >
+                  {isPlanning ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  {isPlanning ? "Creating prompts..." : isPlanRevealing ? "Revealing..." : "Create prompts"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => void handleGenerateAll()}
+                  className="type-button-label ui-button-secondary h-10 w-full justify-center rounded-none border bg-[rgba(255,255,255,0.58)] px-4"
+                  disabled={!rows.length || areGenerationControlsLocked || !hasRowsReadyToGenerate}
+                >
+                  {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+                  {isGeneratingAll ? "Generating..." : "Generate all"}
+                </Button>
+              </div>
             </div>
-
-            <p className="type-section-copy text-sm">
-              Press Enter to run. Use Shift+Enter if you want to add another line first.
-            </p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 xl:w-[220px] xl:grid-cols-1 xl:shrink-0">
-            <Button
-              onClick={() => void handlePlannerApply()}
-              className="type-button-label ui-button-primary h-11 w-full rounded-none px-5"
-              disabled={isBusy}
-            >
-              {isPlanning ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              {isPlanning ? "Creating prompts..." : isPlanRevealing ? "Revealing..." : "Create prompts"}
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => void handleGenerateAll()}
-              className="type-button-label ui-button-secondary h-11 w-full rounded-none border bg-transparent px-5"
-              disabled={!rows.length || areGenerationControlsLocked || !hasRowsReadyToGenerate}
-            >
-              {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-              {isGeneratingAll ? "Generating..." : "Generate all"}
-            </Button>
-          </div>
+          <p className="type-section-copy text-sm">
+            Press Enter to run. Use Shift+Enter if you want to add another line first.
+          </p>
         </div>
 
         {activity.text ? (
