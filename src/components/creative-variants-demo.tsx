@@ -514,14 +514,6 @@ function createPlannedRow(
   };
 }
 
-function getPromptProviderLabel(row: DemoRow) {
-  if (row.promptState === "generating") return "Writing prompt";
-  if (row.promptState === "error") return "Prompt issue";
-  if (row.promptState === "idle") return "Prompt stale";
-  if (row.promptProvider === "cerebras") return "Planner prompt";
-  return "Manual prompt";
-}
-
 function SourcePreview({ source, imageSrc }: { source: DemoSource; imageSrc: string }) {
   return (
     <div
@@ -1542,7 +1534,7 @@ export function CreativeVariantsDemo() {
                   </button>
                 </div>
 
-                <div className="flex min-h-[214px] flex-1 flex-col gap-3 p-3">
+                <div className="flex min-h-[188px] flex-1 flex-col gap-2.5 p-2.5">
                   {isPlannerCardQueuedForReveal ? (
                     <div className="space-y-2">
                       <div className="h-[62px] animate-pulse border border-[var(--line-subtle)] bg-[var(--surface-base)]" />
@@ -1562,23 +1554,14 @@ export function CreativeVariantsDemo() {
                     </>
                   )}
 
-                  <div className="grid gap-2 border-t border-[var(--line-subtle)] pt-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className={cardMetaLabelClass}>Audience</p>
-                        <p className={`${cardCompactBodyClass} mt-1 truncate`}>{row.audience}</p>
-                      </div>
-                      <span className="border border-[var(--line-subtle)] px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-[var(--ink-subtle)]">
-                        {row.cta}
-                      </span>
-                    </div>
+                  <div className="grid gap-2 border-t border-[var(--line-subtle)] pt-2.5">
                     <div className="min-w-0">
-                      <p className={cardMetaLabelClass}>Scene</p>
-                      <p className={`${cardCompactBodyClass} mt-1 max-h-[3.2rem] overflow-hidden`}>{row.scene}</p>
+                      <p className={cardMetaLabelClass}>Audience</p>
+                      <p className={`${cardCompactBodyClass} mt-1 truncate`}>{row.audience}</p>
                     </div>
                   </div>
 
-                  <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[var(--line-subtle)] pt-3">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[var(--line-subtle)] pt-2.5">
                     <Button
                       variant="outline"
                       size="icon-xs"
@@ -1642,8 +1625,8 @@ export function CreativeVariantsDemo() {
         </div>
       </div>
 
-      <div className="border border-[var(--line-subtle)] bg-[var(--surface-muted)] p-4 sm:p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="border border-[var(--line-subtle)] bg-[var(--surface-muted)] p-3 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-[54rem]">
             <p className="type-kicker">Variant strip</p>
           </div>
@@ -1659,7 +1642,7 @@ export function CreativeVariantsDemo() {
           </Button>
         </div>
 
-        <div className="mt-4 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_auto_auto] xl:items-end">
+        <div className="mt-3 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_auto_auto] xl:items-end">
           <div className="space-y-2">
             <span className="type-meta">Reference</span>
             <div className="flex h-11 items-center border border-[var(--line-subtle)] bg-white px-3 text-sm text-[var(--ink-strong)]">
@@ -1699,7 +1682,7 @@ export function CreativeVariantsDemo() {
         </div>
 
         {generatedAssets.length ? (
-          <div className="mt-4 border-t border-[var(--line-subtle)] pt-4">
+          <div className="mt-3 border-t border-[var(--line-subtle)] pt-3">
             <div className="flex items-center justify-between gap-3">
               <p className="type-meta">Reuse generated assets</p>
               <p className="type-meta">{generatedAssets.length} available</p>
@@ -1755,7 +1738,7 @@ export function CreativeVariantsDemo() {
 
         {activity.text ? (
           <div
-            className={`mt-4 flex items-start gap-2 border px-3 py-3 text-sm ${
+            className={`mt-3 flex items-start gap-2 border px-3 py-2.5 text-sm ${
               activity.tone === "error"
                 ? "border-[#d8c5bc] bg-[#fbf3ef] text-[#7d4434]"
                 : "border-[var(--line-subtle)] bg-white text-[var(--ink-body)]"
@@ -1772,22 +1755,18 @@ export function CreativeVariantsDemo() {
       </div>
 
       {activeRow ? (
-        <div className="border border-[var(--line-subtle)] bg-white p-4 sm:p-5">
-          <div className="flex flex-col gap-3 border-b border-[var(--line-subtle)] pb-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="type-kicker">Selected row</p>
-              <p className="type-card-title mt-2">{activeRow.variantName}</p>
-            </div>
+        <div className="border border-[var(--line-subtle)] bg-white p-3 sm:p-4">
+          <div className="flex flex-col gap-2 border-b border-[var(--line-subtle)] pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[1.65rem] font-semibold leading-[0.96] tracking-[-0.05em] text-[var(--ink-strong)]">
+              {activeRow.variantName}
+            </p>
 
-            <div className="flex flex-col gap-3 sm:items-end">
-              <div className="sm:text-right">
-                <p className="type-meta">
-                  {activeRowIndex + 1}
-                  {" / "}
-                  {rows.length}
-                </p>
-                <p className="type-meta mt-2">{getPromptProviderLabel(activeRow)}</p>
-              </div>
+            <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
+              <p className="type-meta whitespace-nowrap">
+                {activeRowIndex + 1}
+                {" / "}
+                {rows.length}
+              </p>
 
               <div className="flex gap-2">
                 <Button
@@ -1795,7 +1774,7 @@ export function CreativeVariantsDemo() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleSelectAdjacentRow(-1)}
-                  className="type-button-label h-9 rounded-none border bg-transparent px-3"
+                  className="type-button-label h-8 rounded-none border bg-transparent px-2.5"
                   disabled={activeRowIndex <= 0 || isBusy}
                 >
                   <ChevronLeft className="size-4" />
@@ -1807,7 +1786,7 @@ export function CreativeVariantsDemo() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleSelectAdjacentRow(1)}
-                  className="type-button-label h-9 rounded-none border bg-transparent px-3"
+                  className="type-button-label h-8 rounded-none border bg-transparent px-2.5"
                   disabled={activeRowIndex >= rows.length - 1 || isBusy}
                 >
                   Next
@@ -1817,22 +1796,12 @@ export function CreativeVariantsDemo() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-5">
+          <div className="mt-3 grid gap-2.5 lg:grid-cols-4">
             <label className="space-y-2">
               <span className="type-meta">Variant name</span>
               <input
                 value={activeRow.variantName}
                 onChange={(event) => updateRow(activeRow.id, "variantName", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="type-meta">CTA</span>
-              <input
-                value={activeRow.cta}
-                onChange={(event) => updateRow(activeRow.id, "cta", event.target.value)}
                 className={inputClassName}
                 disabled={isBusy}
               />
@@ -1878,17 +1847,7 @@ export function CreativeVariantsDemo() {
               />
             </label>
 
-            <label className="space-y-2">
-              <span className="type-meta">Scene</span>
-              <input
-                value={activeRow.scene}
-                onChange={(event) => updateRow(activeRow.id, "scene", event.target.value)}
-                className={inputClassName}
-                disabled={isBusy}
-              />
-            </label>
-
-            <label className="space-y-2">
+            <label className="space-y-2 lg:col-span-2">
               <span className="type-meta">Keywords</span>
               <input
                 value={activeRow.words}
@@ -1897,12 +1856,6 @@ export function CreativeVariantsDemo() {
                 disabled={isBusy}
               />
             </label>
-
-            <div className="flex items-end lg:justify-end">
-              <p className="type-meta max-w-[18rem]">
-                Edit the row fields or write the prompt directly. Generate uses the current prompt from this sheet.
-              </p>
-            </div>
 
             <label className="space-y-2">
               <span className="type-meta">Primary color</span>
@@ -1932,27 +1885,18 @@ export function CreativeVariantsDemo() {
               </div>
             </label>
 
-            <label className="space-y-2 lg:col-span-5">
+            <label className="space-y-2 lg:col-span-4">
               <span className="type-meta">Image prompt</span>
               <textarea
                 value={activeRow.promptText}
                 onChange={(event) => updateRow(activeRow.id, "promptText", event.target.value)}
-                className="min-h-[136px] w-full resize-none border border-[var(--line-subtle)] bg-white px-3 py-3 text-sm leading-6 text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]"
+                className="min-h-[120px] w-full resize-none border border-[var(--line-subtle)] bg-white px-3 py-3 text-sm leading-6 text-[var(--ink-strong)] outline-none transition focus:border-[var(--accent-strong)]"
                 disabled={isBusy}
               />
             </label>
           </div>
         </div>
       ) : null}
-
-      <div className="grid gap-4">
-        <div className="border border-[var(--line-subtle)] bg-white p-4">
-          <p className="type-kicker">Source-first</p>
-          <p className="type-section-copy mt-3">
-            Every row starts from the same product image so comparison stays fair and deliberate.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
