@@ -8,7 +8,6 @@ import {
   Copy,
   ImageUp,
   LoaderCircle,
-  Plus,
   RotateCcw,
   Sparkles,
   Trash2,
@@ -1338,18 +1337,6 @@ export function CreativeVariantsDemo() {
     setActiveRowId(duplicateId);
   };
 
-  const handleAddRow = () => {
-    if (rows.length >= MAX_ROWS || isBusy) return;
-
-    const seed = variantSeeds[rows.length % variantSeeds.length];
-    const rowId = buildManualRowId(manualCounterRef.current);
-    manualCounterRef.current += 1;
-    const nextRow = createVariantRow(seed, selectedSource, plannerInput, rowId);
-
-    setRows((currentRows) => [...currentRows, nextRow]);
-    setActiveRowId(rowId);
-  };
-
   const handleUseRowAsNextRoundInput = (rowId: string) => {
     if (isBusy) return;
 
@@ -1387,8 +1374,7 @@ export function CreativeVariantsDemo() {
       <div className="space-y-2">
         <div className="flex items-end justify-between gap-3 sm:hidden">
           <div>
-            <p className="type-kicker">Variant strip</p>
-            <p className="type-section-copy mt-1 text-sm">
+            <p className="type-section-copy text-sm">
               Swipe across, tap a card, then edit the selected row below.
             </p>
           </div>
@@ -1626,22 +1612,6 @@ export function CreativeVariantsDemo() {
       </div>
 
       <div className="border border-[var(--line-subtle)] bg-[var(--surface-muted)] p-3 sm:p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-[54rem]">
-            <p className="type-kicker">Variant strip</p>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={handleAddRow}
-            className="type-button-label ui-button-secondary h-11 w-full rounded-none border bg-transparent px-5 sm:w-auto xl:shrink-0"
-            disabled={rows.length >= MAX_ROWS || isBusy}
-          >
-            <Plus className="size-4" />
-            Add row
-          </Button>
-        </div>
-
         <div className="mt-3 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_auto_auto] xl:items-end">
           <div className="space-y-2">
             <span className="type-meta">Reference</span>
