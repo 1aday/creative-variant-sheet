@@ -2006,24 +2006,11 @@ export function CreativeVariantsDemo() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4">
         <div className="border border-[var(--line-subtle)] bg-white p-4">
           <p className="type-kicker">Source-first</p>
           <p className="type-section-copy mt-3">
             Every row starts from the same product image so comparison stays fair and deliberate.
-          </p>
-        </div>
-        <div className="border border-[var(--line-subtle)] bg-white p-4">
-          <p className="type-kicker">GPT OSS planning</p>
-          <p className="type-section-copy mt-3">
-            Prompt drafting now uses the same Cerebras planner pattern as the style app, then hands those prompts to
-            the image pipeline.
-          </p>
-        </div>
-        <div className="border border-[var(--line-subtle)] bg-white p-4">
-          <p className="type-kicker">Live generation</p>
-          <p className="type-section-copy mt-3">
-            Image generation runs through the live guest backend and drops the result back into the strip in place.
           </p>
         </div>
       </div>
