@@ -86,6 +86,14 @@ type GeneratedAsset = {
   rowSnapshot: DemoRow;
 };
 
+type ArchivedRound = {
+  id: string;
+  sourceBadge: string;
+  sourceNote: string | null;
+  sourceImageSrc: string;
+  rows: DemoRow[];
+};
+
 type UploadedSourceImage = {
   dataUrl: string;
   name: string;
@@ -114,7 +122,22 @@ type PlanResponse = {
   error?: string;
 };
 
+type GenerateRowOptions = {
+  promptOverride?: string;
+  silent?: boolean;
+  source?: DemoSource;
+  planner?: string;
+  sourceImageInput?: string;
+};
+
+type GenerationJob = {
+  rowId: string;
+  options?: GenerateRowOptions;
+  resolve: (didSucceed: boolean) => void;
+};
+
 const MAX_ROWS = 5;
+const MAX_PARALLEL_IMAGE_GENERATIONS = MAX_ROWS;
 const DEFAULT_PROMPT =
   "Create a skincare casting test that keeps the ad layout consistent while changing the model's age, gender, and race across the variants.";
 const PLAN_REVEAL_BASE_DELAY_MS = 120;
@@ -717,6 +740,7 @@ function VariantPreview({
 export function CreativeVariantsDemo() {
   const initialRows = buildPromptPlan(DEFAULT_PROMPT, sourceOptions[0], "plan-0");
   const [roundSeedImage, setRoundSeedImage] = useState<RoundSeedImage | null>(null);
+  const [archivedRounds, setArchivedRounds] = useState<ArchivedRound[]>([]);
   const [generatedAssets, setGeneratedAssets] = useState<GeneratedAsset[]>([]);
   const [uploadedSourceImage, setUploadedSourceImage] = useState<UploadedSourceImage | null>(null);
   const [plannerInput, setPlannerInput] = useState(DEFAULT_PROMPT);
@@ -727,6 +751,7 @@ export function CreativeVariantsDemo() {
   const [plannerRevealIndex, setPlannerRevealIndex] = useState(-1);
   const [planRevealCycle, setPlanRevealCycle] = useState(0);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [queuedGenerationRowIds, setQueuedGenerationRowIds] = useState<string[]>([]);
   const [isUploadingSourceImage, setIsUploadingSourceImage] = useState(false);
   const [activity, setActivity] = useState<ActivityState>({
     tone: "default",
@@ -734,10 +759,15 @@ export function CreativeVariantsDemo() {
   });
   const planCounterRef = useRef(1);
   const manualCounterRef = useRef(1);
+  const roundCounterRef = useRef(1);
   const sourceFileInputRef = useRef<HTMLInputElement | null>(null);
   const rowStripRef = useRef<HTMLDivElement | null>(null);
   const rowCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const rowsRef = useRef(rows);
+  const generationQueueRef = useRef<GenerationJob[]>([]);
+  const queuedGenerationRowIdsRef = useRef<string[]>([]);
+  const rowGenerationLocksRef = useRef<Set<string>>(new Set());
+  const activeGenerationJobsRef = useRef(0);
 
   const selectedSource = sourceOptions[0];
   const selectedSourcePreviewImageSrc = useMemo(() => {
@@ -747,12 +777,36 @@ export function CreativeVariantsDemo() {
     return roundSeedImage?.inputSrc || resolveSourceReferenceInput(selectedSource, uploadedSourceImage);
   }, [roundSeedImage, selectedSource, uploadedSourceImage]);
   const sharedPlaceholderImageSrc = roundSeedImage?.previewSrc || null;
+  const currentSourceBadge = roundSeedImage
+    ? "Generated source"
+    : uploadedSourceImage
+      ? "Uploaded image"
+      : selectedSource.category;
+  const currentSourceNote = roundSeedImage
+    ? `From ${roundSeedImage.label}`
+    : uploadedSourceImage
+      ? uploadedSourceImage.name
+      : null;
 
   const activeRow = rows.find((row) => row.id === activeRowId) ?? rows[0] ?? null;
   const generatingCount = rows.filter((row) => row.status === "generating").length;
+  const queuedGenerationCount = queuedGenerationRowIds.length;
   const activeRowIndex = activeRow ? rows.findIndex((row) => row.id === activeRow.id) : -1;
   const isPlannerBusy = isPlanning || isPlanRevealing;
-  const isBusy = isPlannerBusy || isGeneratingAll || generatingCount > 0 || isUploadingSourceImage;
+  const hasActiveGenerationWork = generatingCount > 0 || queuedGenerationCount > 0;
+  const areGenerationControlsLocked = isPlannerBusy || isUploadingSourceImage;
+  const isBusy = isPlannerBusy || isUploadingSourceImage || hasActiveGenerationWork;
+  const hasRowsReadyToGenerate = rows.some(
+    (row) => row.status !== "generating" && !queuedGenerationRowIds.includes(row.id),
+  );
+
+  const updateQueuedGenerationRowIds = (updater: (current: string[]) => string[]) => {
+    const next = updater(queuedGenerationRowIdsRef.current);
+    queuedGenerationRowIdsRef.current = next;
+    setQueuedGenerationRowIds(next);
+  };
+
+  const isRowQueuedForGeneration = (rowId: string) => queuedGenerationRowIdsRef.current.includes(rowId);
 
   const buildGeneratedAsset = (row: DemoRow, imageUrl: string): GeneratedAsset => {
     const cleanedImageUrl = imageUrl.trim();
@@ -777,37 +831,34 @@ export function CreativeVariantsDemo() {
     });
   };
 
+  const cloneRowsForNextRound = (currentRows: DemoRow[]) => {
+    return currentRows.map((row, index) => ({
+      ...row,
+      id: `${buildManualRowId(manualCounterRef.current)}-round-${index + 1}`,
+      imageUrl: null,
+      errorMessage: null,
+      status: "draft" as const,
+      renderVersion: row.renderVersion + 1,
+    }));
+  };
+
+  const archiveCurrentRound = () => {
+    const nextArchivedRound: ArchivedRound = {
+      id: `archived-round-${roundCounterRef.current}`,
+      sourceBadge: currentSourceBadge,
+      sourceNote: currentSourceNote,
+      sourceImageSrc: selectedSourcePreviewImageSrc,
+      rows: rowsRef.current.map((row) => ({ ...row })),
+    };
+    roundCounterRef.current += 1;
+    setArchivedRounds((currentRounds) => [nextArchivedRound, ...currentRounds]);
+  };
+
   const activateGeneratedAsset = (asset: GeneratedAsset) => {
     if (isBusy) return;
     if (roundSeedImage?.inputSrc === asset.imageUrl) return;
 
-    const seedRow = asset.rowSnapshot;
-    const nextVariantName = `${asset.label} Next`;
-    const nextRowId = buildManualRowId(manualCounterRef.current);
-    manualCounterRef.current += 1;
-
-    const nextRoundRow: DemoRow = {
-      ...seedRow,
-      id: nextRowId,
-      variantName: nextVariantName,
-      promptText: seedRow.promptText.trim()
-        ? seedRow.promptText
-        : buildLocalImagePrompt(
-            selectedSource,
-            {
-              ...seedRow,
-              variantName: nextVariantName,
-            },
-            plannerInput,
-          ),
-      promptState: seedRow.promptText.trim() ? "ready" : "idle",
-      promptProvider: seedRow.promptProvider,
-      promptError: null,
-      imageUrl: null,
-      errorMessage: null,
-      status: "draft",
-      renderVersion: seedRow.renderVersion + 1,
-    };
+    archiveCurrentRound();
 
     setRoundSeedImage({
       inputSrc: asset.imageUrl,
@@ -815,26 +866,23 @@ export function CreativeVariantsDemo() {
       label: asset.label,
     });
 
-    setRows((currentRows) => {
-      const clearedRows = currentRows.map((candidate) => ({
-        ...candidate,
-        imageUrl: null,
-        errorMessage: null,
-        status: "draft" as const,
-      }));
-      const trimmedRows = clearedRows.length >= MAX_ROWS ? clearedRows.slice(0, MAX_ROWS - 1) : clearedRows;
-      return [nextRoundRow, ...trimmedRows];
-    });
-    setActiveRowId(nextRowId);
+    const nextRows = cloneRowsForNextRound(rowsRef.current);
+    manualCounterRef.current += nextRows.length;
+    setRows(nextRows);
+    setActiveRowId(nextRows[0]?.id ?? "");
     setActivity({
       tone: "default",
-      text: `${asset.label} is now the shared input for the next generation round.`,
+      text: `${asset.label} is now the source for a new round above the previous set.`,
     });
   };
 
   useEffect(() => {
     rowsRef.current = rows;
   }, [rows]);
+
+  useEffect(() => {
+    queuedGenerationRowIdsRef.current = queuedGenerationRowIds;
+  }, [queuedGenerationRowIds]);
 
   useEffect(() => {
     if (!activeRowId || !rowStripRef.current) return;
@@ -895,15 +943,9 @@ export function CreativeVariantsDemo() {
     return resolvedPrompt;
   };
 
-  const generateImageForRow = async (
+  const runImageGenerationForRow = async (
     rowId: string,
-    options?: {
-      promptOverride?: string;
-      silent?: boolean;
-      source?: DemoSource;
-      planner?: string;
-      sourceImageInput?: string;
-    },
+    options?: GenerateRowOptions,
   ) => {
     const source = options?.source ?? selectedSource;
     const planner = options?.planner ?? plannerInput;
@@ -1019,7 +1061,58 @@ export function CreativeVariantsDemo() {
       }
 
       return false;
+    } finally {
+      rowGenerationLocksRef.current.delete(rowId);
     }
+  };
+
+  const processGenerationQueue = () => {
+    while (
+      activeGenerationJobsRef.current < MAX_PARALLEL_IMAGE_GENERATIONS &&
+      generationQueueRef.current.length > 0
+    ) {
+      const nextJob = generationQueueRef.current.shift();
+      if (!nextJob) return;
+
+      const row = rowsRef.current.find((candidate) => candidate.id === nextJob.rowId);
+      if (!row || row.status === "generating" || rowGenerationLocksRef.current.has(nextJob.rowId)) {
+        updateQueuedGenerationRowIds((current) => current.filter((candidate) => candidate !== nextJob.rowId));
+        nextJob.resolve(false);
+        continue;
+      }
+
+      updateQueuedGenerationRowIds((current) => current.filter((candidate) => candidate !== nextJob.rowId));
+      rowGenerationLocksRef.current.add(nextJob.rowId);
+      activeGenerationJobsRef.current += 1;
+
+      void runImageGenerationForRow(nextJob.rowId, nextJob.options)
+        .then(nextJob.resolve)
+        .finally(() => {
+          activeGenerationJobsRef.current -= 1;
+          processGenerationQueue();
+        });
+    }
+  };
+
+  const generateImageForRow = (rowId: string, options?: GenerateRowOptions) => {
+    if (areGenerationControlsLocked) {
+      return Promise.resolve(false);
+    }
+
+    const row = rowsRef.current.find((candidate) => candidate.id === rowId);
+    if (!row || row.status === "generating" || rowGenerationLocksRef.current.has(rowId) || isRowQueuedForGeneration(rowId)) {
+      return Promise.resolve(false);
+    }
+
+    return new Promise<boolean>((resolve) => {
+      generationQueueRef.current.push({
+        rowId,
+        options,
+        resolve,
+      });
+      updateQueuedGenerationRowIds((current) => [...current, rowId]);
+      processGenerationQueue();
+    });
   };
 
   const handlePlannerApply = async () => {
@@ -1211,7 +1304,12 @@ export function CreativeVariantsDemo() {
   };
 
   const handleGenerateAll = async () => {
-    if (!rowsRef.current.length || isBusy) return;
+    if (!rowsRef.current.length || areGenerationControlsLocked) return;
+
+    const rowsToGenerate = rowsRef.current.filter(
+      (row) => row.status !== "generating" && !rowGenerationLocksRef.current.has(row.id) && !isRowQueuedForGeneration(row.id),
+    );
+    if (!rowsToGenerate.length) return;
 
     setIsGeneratingAll(true);
     const sourceSnapshot = selectedSource;
@@ -1220,7 +1318,7 @@ export function CreativeVariantsDemo() {
 
     try {
       const results = await Promise.all(
-        rowsRef.current.map((row) =>
+        rowsToGenerate.map((row) =>
           generateImageForRow(row.id, {
             silent: true,
             source: sourceSnapshot,
@@ -1343,9 +1441,7 @@ export function CreativeVariantsDemo() {
               <div className="flex min-h-[214px] flex-1 flex-col justify-between gap-3 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="type-chip ui-border inline-flex h-6 items-center border px-2.5">Source</span>
-                  <span className="type-meta">
-                    {roundSeedImage ? "Generated source" : uploadedSourceImage ? "Uploaded image" : selectedSource.category}
-                  </span>
+                  <span className="type-meta">{currentSourceBadge}</span>
                 </div>
 
                 <div className="space-y-1">
@@ -1354,32 +1450,14 @@ export function CreativeVariantsDemo() {
                   <p className={cardCompactBodyClass}>{selectedSource.descriptor}</p>
                 </div>
 
-                {roundSeedImage ? (
+                {currentSourceNote ? (
                   <div className="space-y-1 border border-[var(--line-subtle)] bg-[var(--surface-muted)] px-3 py-2">
-                    <p className="type-meta">Next round input</p>
+                    <p className="type-meta">{roundSeedImage ? "Next round input" : "Uploaded source image"}</p>
                     <p className="truncate text-[0.78rem] leading-5 text-[var(--ink-body)]">
-                      From {roundSeedImage.label}
-                    </p>
-                  </div>
-                ) : uploadedSourceImage ? (
-                  <div className="space-y-1 border border-[var(--line-subtle)] bg-[var(--surface-muted)] px-3 py-2">
-                    <p className="type-meta">Uploaded source image</p>
-                    <p className="truncate text-[0.78rem] leading-5 text-[var(--ink-body)]">
-                      {uploadedSourceImage.name}
+                      {currentSourceNote}
                     </p>
                   </div>
                 ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  {selectedSource.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="border border-[var(--line-subtle)] px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-[var(--ink-subtle)]"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
 
                 <div className="ui-border border-t pt-2.5">
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -1484,53 +1562,63 @@ export function CreativeVariantsDemo() {
                     </div>
                   </div>
 
-                  <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[var(--line-subtle)] pt-2.5">
-                    <Button
-                      variant="outline"
-                      size="icon-xs"
-                      onClick={() => handleDuplicateRow(row.id)}
-                      className="rounded-none border"
-                      disabled={rows.length >= MAX_ROWS || isBusy}
-                    >
-                      <Copy className="size-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon-xs"
-                      onClick={() => handleDeleteRow(row.id)}
-                      className="rounded-none border"
-                      disabled={rows.length <= 1 || isBusy}
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
+                  <div className="mt-auto flex flex-nowrap items-center gap-1.5 border-t border-[var(--line-subtle)] pt-2.5">
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="icon-xs"
+                        onClick={() => handleDuplicateRow(row.id)}
+                        className="h-8 w-8 rounded-none border"
+                        disabled={rows.length >= MAX_ROWS || isBusy}
+                      >
+                        <Copy className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon-xs"
+                        onClick={() => handleDeleteRow(row.id)}
+                        className="h-8 w-8 rounded-none border"
+                        disabled={rows.length <= 1 || isBusy}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                     {row.imageUrl ? (
                       <Button
                         variant="outline"
                         onClick={() => handleUseRowAsNextRoundInput(row.id)}
-                        className={`type-button-label h-9 rounded-none border px-3 ${
+                        className={`type-button-label h-8 min-w-0 flex-1 rounded-none border px-2.5 text-[0.76rem] ${
                           isUsingRowAsSource
                             ? "border-[var(--accent-strong)] bg-[var(--surface-muted)] text-[var(--accent-strong)]"
                             : ""
                         }`}
                         disabled={isBusy}
                       >
-                        <ArrowUp className="size-4" />
+                        <ArrowUp className="size-3.5" />
                         {isUsingRowAsSource ? "Using as source" : "Set source"}
                       </Button>
                     ) : null}
                     <Button
                       onClick={() => void generateImageForRow(row.id)}
-                      className="type-button-label ui-button-primary h-9 w-full justify-center rounded-none px-4 sm:ml-auto sm:w-auto"
-                      disabled={isBusy}
+                      className={`type-button-label ui-button-primary h-8 min-w-0 shrink-0 justify-center rounded-none px-3 text-[0.76rem] ${
+                        row.imageUrl ? "min-w-[118px]" : "flex-1"
+                      }`}
+                      disabled={areGenerationControlsLocked || row.status === "generating" || isRowQueuedForGeneration(row.id)}
                     >
                       {row.status === "generated" ? (
-                        <RotateCcw className="size-4" />
+                        <RotateCcw className="size-3.5" />
+                      ) : isRowQueuedForGeneration(row.id) ? (
+                        <LoaderCircle className="size-3.5 animate-spin" />
                       ) : row.status === "generating" ? (
-                        <LoaderCircle className="size-4 animate-spin" />
+                        <LoaderCircle className="size-3.5 animate-spin" />
                       ) : (
-                        <Wand2 className="size-4" />
+                        <Wand2 className="size-3.5" />
                       )}
-                      {row.status === "generated" ? "Regenerate" : "Generate"}
+                      {isRowQueuedForGeneration(row.id)
+                        ? "Queued"
+                        : row.status === "generated"
+                          ? "Regenerate"
+                          : "Generate"}
                     </Button>
                   </div>
 
@@ -1607,7 +1695,7 @@ export function CreativeVariantsDemo() {
               variant="outline"
               onClick={() => void handleGenerateAll()}
               className="type-button-label ui-button-secondary h-11 w-full rounded-none border bg-transparent px-5"
-              disabled={!rows.length || isBusy}
+              disabled={!rows.length || areGenerationControlsLocked || !hasRowsReadyToGenerate}
             >
               {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
               {isGeneratingAll ? "Generating..." : "Generate all"}
@@ -1632,6 +1720,65 @@ export function CreativeVariantsDemo() {
           </div>
         ) : null}
       </div>
+
+      {archivedRounds.map((archivedRound) => (
+        <div key={archivedRound.id} className="space-y-1.5">
+          <div className="-mx-2 overflow-x-auto px-2 pb-2 sm:-mx-3 sm:px-3">
+            <div className="flex min-w-max gap-3">
+              <div className="flex w-[min(86vw,304px)] shrink-0 flex-col overflow-hidden border border-[var(--line-subtle)] bg-white sm:w-[304px]">
+                <div className="relative overflow-hidden border-b border-[var(--line-subtle)] bg-slate-100">
+                  <SourcePreview source={selectedSource} imageSrc={archivedRound.sourceImageSrc} />
+                </div>
+                <div className="flex min-h-[188px] flex-1 flex-col justify-between gap-3 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="type-chip ui-border inline-flex h-6 items-center border px-2.5">Source</span>
+                    <span className="type-meta">{archivedRound.sourceBadge}</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="type-meta">Reference</p>
+                    <h3 className={cardCompactTitleClass}>{selectedSource.name}</h3>
+                    <p className={cardCompactBodyClass}>{selectedSource.descriptor}</p>
+                  </div>
+
+                  {archivedRound.sourceNote ? (
+                    <div className="space-y-1 border border-[var(--line-subtle)] bg-[var(--surface-muted)] px-3 py-2">
+                      <p className="type-meta">Source note</p>
+                      <p className="truncate text-[0.78rem] leading-5 text-[var(--ink-body)]">
+                        {archivedRound.sourceNote}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {archivedRound.rows.map((row) => (
+                <div
+                  key={row.id}
+                  className="flex w-[min(86vw,304px)] shrink-0 flex-col overflow-hidden border border-[var(--line-subtle)] bg-white sm:w-[304px]"
+                >
+                  <div className="relative overflow-hidden border-b border-[var(--line-subtle)] bg-slate-100">
+                    <VariantPreview row={row} source={selectedSource} placeholderImageSrc={archivedRound.sourceImageSrc} />
+                  </div>
+
+                  <div className="flex min-h-[188px] flex-1 flex-col gap-2.5 p-2.5">
+                    <div className="border border-[var(--line-subtle)] bg-[var(--surface-base)] px-3 py-2.5">
+                      <h3 className={cardCompactTitleClass}>{row.variantName}</h3>
+                    </div>
+
+                    <div className="grid gap-2 border-t border-[var(--line-subtle)] pt-2.5">
+                      <div className="min-w-0">
+                        <p className={cardMetaLabelClass}>Audience</p>
+                        <p className={`${cardCompactBodyClass} mt-1 truncate`}>{row.audience}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
 
       {generatedAssets.length ? (
         <div className="border border-[var(--line-subtle)] bg-[var(--surface-muted)] p-3 sm:p-4">
