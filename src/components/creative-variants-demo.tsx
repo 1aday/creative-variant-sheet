@@ -880,7 +880,7 @@ export function CreativeVariantsDemo() {
     const row = rowsRef.current.find((candidate) => candidate.id === rowId);
     if (!row) return "";
 
-    const resolvedPrompt = row.promptText.trim() || buildLocalImagePrompt(source, row, planner);
+    const resolvedPrompt = row.promptText.trim() || buildLocalImagePrompt(source, row.variantName, planner);
 
     if (!row.promptText.trim() || row.promptState !== "ready") {
       setRows((currentRows) =>
@@ -1317,14 +1317,7 @@ export function CreativeVariantsDemo() {
       variantName: nextVariantName,
       promptText: row.promptText.trim()
         ? row.promptText
-        : buildLocalImagePrompt(
-            selectedSource,
-            {
-              ...row,
-              variantName: nextVariantName,
-            },
-            plannerInput,
-          ),
+        : buildLocalImagePrompt(selectedSource, nextVariantName, plannerInput),
       promptState: "idle",
       promptProvider: row.promptProvider,
       promptError: null,
