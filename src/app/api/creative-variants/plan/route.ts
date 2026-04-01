@@ -18,38 +18,15 @@ const DEFAULT_PLANNER_MODEL =
   process.env.CEREBRAS_PLANNER_MODEL?.trim() || "qwen-3-235b-a22b-instruct-2507";
 const PLANNER_MODEL_FALLBACKS = ["qwen-3-235b-a22b-instruct-2507", "llama3.1-8b"] as const;
 const ASPECT_RATIOS = ["match_input_image"] as const;
-const TEST_PATTERNS = [
-  "same_message_different_audiences",
-  "same_audience_different_pain_points",
-  "same_audience_different_languages",
-  "mixed_experiment",
-] as const;
+const TEST_PATTERNS = ["specific_axis_sweep", "mixed_experiment"] as const;
 
 type AspectRatio = (typeof ASPECT_RATIOS)[number];
 type TestPattern = (typeof TEST_PATTERNS)[number];
 
-type PromptSections = {
-  objective: string;
-  audience: string;
-  painPoint: string;
-  message: string;
-  visualDirection: string;
-  language: string;
-  offer: string;
-};
-
 type PlannedVariant = {
   variantName: string;
-  audience: string;
-  painPoint: string;
-  language: string;
-  bodyCopy: string;
-  cta: string;
-  scene: string;
-  words: string;
   aspectRatio: AspectRatio;
   imageModelPrompt: string;
-  promptSections: PromptSections;
 };
 
 type PlannerCompletion = {
@@ -82,55 +59,14 @@ const buildCreativeVariantPlanSchema = (variantCount: number) => ({
         items: {
           type: "object",
           additionalProperties: false,
-          required: [
-            "variantName",
-            "audience",
-            "painPoint",
-            "language",
-            "bodyCopy",
-            "cta",
-            "scene",
-            "words",
-            "aspectRatio",
-            "imageModelPrompt",
-            "promptSections",
-          ],
+          required: ["variantName", "aspectRatio", "imageModelPrompt"],
           properties: {
             variantName: { type: "string" },
-            audience: { type: "string" },
-            painPoint: { type: "string" },
-            language: { type: "string" },
-            bodyCopy: { type: "string" },
-            cta: { type: "string" },
-            scene: { type: "string" },
-            words: { type: "string" },
             aspectRatio: {
               type: "string",
               enum: [...ASPECT_RATIOS],
             },
             imageModelPrompt: { type: "string" },
-            promptSections: {
-              type: "object",
-              additionalProperties: false,
-              required: [
-                "objective",
-                "audience",
-                "painPoint",
-                "message",
-                "visualDirection",
-                "language",
-                "offer",
-              ],
-              properties: {
-                objective: { type: "string" },
-                audience: { type: "string" },
-                painPoint: { type: "string" },
-                message: { type: "string" },
-                visualDirection: { type: "string" },
-                language: { type: "string" },
-                offer: { type: "string" },
-              },
-            },
           },
         },
       },
@@ -158,14 +94,13 @@ const stripPlatformBrandTokens = (value: string): string => {
 
 const PLANNER_SYSTEM_PROMPT = [
   "You are a senior performance creative strategist for paid social ads.",
-  "You will receive one product image and a testing goal.",
-  "Use image understanding: analyze the product image's composition, product form factor, lighting style, and visual cues before proposing variants.",
+  "You will receive a testing goal for variations built from one reference product image.",
   "Create distinct testable variants with clear experimental separation based on the user's requested change axis.",
   "The user decides what to vary: treat any requested variable as valid (visual attribute, copy angle, audience, language, offer, locale, style, etc).",
   "Extract the primary change axis from the user goal and build the requested variants as a targeted sweep across concrete values for that axis.",
   "For each variant, generate a concrete imageModelPrompt that can be sent directly to an image model for editing the reference image.",
-  "When user asks to vary one attribute (color, material, background, text, pose, etc), keep everything else stable and only change that attribute per variant.",
-  "If the requested axis is casting or demographics, keep framing, proof layout, product usage cues, and lighting stable while changing only age, gender presentation, and race as directed.",
+  "If the request is for a specific axis, keep framing, proof layout, product usage cues, and lighting stable while changing only the aspect the user explicitly asked for.",
+  "Do not introduce unrelated changes outside the requested axis.",
   "Never inject platform/app brand identity (e.g., AdStyle, Adstyles) or UI theme colors unless explicitly provided in user input.",
   "Return strict JSON only that matches the provided schema and contains no extra keys.",
 ].join(" ");
@@ -211,74 +146,42 @@ const clampVariantCount = (value: unknown): number => {
 
 const buildPlannerUserPrompt = (params: {
   testGoal: string;
-  productName: string;
-  productCategory: string;
-  productDescription: string;
-  productTags: string[];
   variantCount: number;
 }) => {
   const safeGoal = stripPlatformBrandTokens(params.testGoal);
-  const safeProductName = stripPlatformBrandTokens(params.productName);
-  const safeCategory = stripPlatformBrandTokens(params.productCategory);
-  const safeDescription = stripPlatformBrandTokens(params.productDescription);
-  const safeTags = params.productTags.map((tag) => stripPlatformBrandTokens(tag)).filter(Boolean);
 
   return [
     `Testing goal: ${safeGoal}`,
-    `Product name: ${safeProductName}`,
-    `Product category: ${safeCategory}`,
-    `Product description: ${safeDescription || "none provided"}`,
-    `Product tags: ${safeTags.join(", ") || "none provided"}`,
     "",
-    "The product image is the source of truth for brand/vibe. Use visual evidence from that image when writing scenes and messaging angles.",
+    "Treat the reference image as a locked base asset.",
     "Do not invent brand names, logos, app/platform references, or UI theme palettes.",
     "",
-    "You must fill these table columns for each variant:",
-    "variantName, audience, painPoint, language, bodyCopy, cta, scene, words, aspectRatio, imageModelPrompt, promptSections",
+    "Return these fields for each variant:",
+    "variantName, aspectRatio, imageModelPrompt",
     "",
     "Rules:",
     `1) Return exactly ${params.variantCount} variants (${params.variantCount} distinct ad concepts).`,
     "2) Derive the primary variation axis directly from the testing goal. Do not substitute a different axis unless the user asks for mixed testing.",
     "3) Make each variant genuinely different for testing by using concrete option values along that axis (not superficial rewrites).",
-    "4) If the user request implies option sets (e.g., colors, audiences, languages, claim styles), make each variant map to one explicit option.",
+    "4) If the user request implies option sets (e.g., colors, backgrounds, claims, demographics, text treatments, materials), make each variant map to one explicit option.",
     "5) variantName should reflect the option value being tested so rows are scannable.",
-    "6) Keep bodyCopy concise and ad-ready (max 22 words).",
-    "7) Keep cta concise (max 5 words).",
-    "8) words must be comma-separated strategic keywords (4 to 8 terms).",
-    "9) Set aspectRatio to match_input_image for every variant.",
-    "10) imageModelPrompt must be a direct instruction for image editing using the reference image, explicitly stating what to change and what to keep fixed.",
-    "11) If user requested one specific change axis, vary only that axis across variants and keep all other visual factors consistent.",
-    "12) promptSections must be practical building blocks for image generation prompts.",
-    "13) If the user is testing model demographics, keep composition, crop, skincare application, and proof text treatment stable while varying casting attributes only.",
-    "14) Return JSON only. No preamble, no markdown, no code fences, no explanation.",
+    "6) Set aspectRatio to match_input_image for every variant.",
+    "7) imageModelPrompt must be a direct instruction for image editing using the reference image, explicitly stating what to change and what to keep fixed.",
+    "8) Keep framing, proof layout, product usage cues, and lighting stable while changing only the aspect the user explicitly asked for.",
+    "9) Do not introduce unrelated changes outside the requested axis.",
+    "10) Return JSON only. No preamble, no markdown, no code fences, no explanation.",
     "",
     "JSON response format example:",
     JSON.stringify(
       {
-        strategySummary: `${params.variantCount}-variant plan optimized for audience and message testing.`,
-        testPattern: "mixed_experiment",
+        strategySummary: `${params.variantCount}-variant plan optimized for a controlled axis sweep.`,
+        testPattern: "specific_axis_sweep",
         variants: [
           {
             variantName: "Variant 1",
-            audience: "Example audience",
-            painPoint: "Example pain point",
-            language: "English",
-            bodyCopy: "Example concise body copy",
-            cta: "Shop now",
-            scene: "Example scene direction",
-            words: "Keyword A, Keyword B, Keyword C",
             aspectRatio: "match_input_image",
             imageModelPrompt:
               "Keep composition, model pose, and product unchanged. Change only nail color to classic red with realistic gloss and natural skin tones.",
-            promptSections: {
-              objective: "Example objective",
-              audience: "Example audience",
-              painPoint: "Example pain point",
-              message: "Example core message",
-              visualDirection: "Example visual direction",
-              language: "English",
-              offer: "Example offer/CTA angle",
-            },
           },
         ],
       },
@@ -288,52 +191,24 @@ const buildPlannerUserPrompt = (params: {
   ].join("\n");
 };
 
-const clampWords = (value: unknown): string => {
-  const text = cleanText(value);
-  if (!text) return "Benefit-led, Scroll-stopping, Product-first";
-
-  return text
-    .split(",")
-    .map((word) => word.trim())
-    .filter(Boolean)
-    .slice(0, 8)
-    .join(", ");
-};
-
 const normalizeAspectRatio = (value: unknown): AspectRatio => {
   void value;
   return "match_input_image";
 };
 
 const normalizeTestPattern = (value: unknown): TestPattern => {
-  if (typeof value !== "string") return "mixed_experiment";
+  if (typeof value !== "string") return "specific_axis_sweep";
   return TEST_PATTERNS.includes(value as TestPattern)
     ? (value as TestPattern)
-    : "mixed_experiment";
+    : "specific_axis_sweep";
 };
 
-const fallbackVariant = (index: number, language = "English"): PlannedVariant => {
+const fallbackVariant = (index: number): PlannedVariant => {
   return {
     variantName: `Variant ${index + 1}`,
-    audience: "Core target audience",
-    painPoint: "Primary pain point",
-    language,
-    bodyCopy: "Lead with one concrete product benefit and keep the message concise.",
-    cta: "Shop now",
-    scene: "Product-led studio setup with clear focal point",
-    words: "Benefit-first, High-contrast, Conversion-focused",
     aspectRatio: "match_input_image",
     imageModelPrompt:
-      "Keep product identity, framing, and lighting fixed. Apply one controlled visual change for this variant only.",
-    promptSections: {
-      objective: "Test conversion-focused product message",
-      audience: "Core target audience",
-      painPoint: "Primary pain point",
-      message: "Lead with strongest product benefit and clear value proposition",
-      visualDirection: "Keep product centered with clean performance-marketing composition",
-      language,
-      offer: "Strong CTA with direct purchase intent",
-    },
+      "Keep framing, proof layout, product usage cues, and lighting stable. Change only one requested aspect for this variant.",
   };
 };
 
@@ -342,40 +217,10 @@ const normalizeVariant = (rawVariant: unknown, index: number): PlannedVariant =>
   const defaultRow = fallbackVariant(index);
   if (!variantRecord) return defaultRow;
 
-  const promptSectionsRecord = asRecord(variantRecord.promptSections);
-
-  const variantName = cleanText(variantRecord.variantName, defaultRow.variantName);
-  const audience = cleanText(variantRecord.audience, defaultRow.audience);
-  const painPoint = cleanText(variantRecord.painPoint, defaultRow.painPoint);
-  const language = cleanText(variantRecord.language, defaultRow.language);
-  const bodyCopy = cleanText(variantRecord.bodyCopy, defaultRow.bodyCopy);
-  const cta = cleanText(variantRecord.cta, defaultRow.cta);
-  const scene = cleanText(variantRecord.scene, defaultRow.scene);
-  const imageModelPrompt = cleanText(variantRecord.imageModelPrompt, defaultRow.imageModelPrompt);
-
   return {
-    variantName,
-    audience,
-    painPoint,
-    language,
-    bodyCopy,
-    cta,
-    scene,
-    words: clampWords(variantRecord.words),
+    variantName: cleanText(variantRecord.variantName, defaultRow.variantName),
     aspectRatio: normalizeAspectRatio(variantRecord.aspectRatio),
-    imageModelPrompt,
-    promptSections: {
-      objective: cleanText(promptSectionsRecord?.objective, defaultRow.promptSections.objective),
-      audience: cleanText(promptSectionsRecord?.audience, audience || defaultRow.promptSections.audience),
-      painPoint: cleanText(promptSectionsRecord?.painPoint, painPoint || defaultRow.promptSections.painPoint),
-      message: cleanText(promptSectionsRecord?.message, bodyCopy || defaultRow.promptSections.message),
-      visualDirection: cleanText(
-        promptSectionsRecord?.visualDirection,
-        scene || defaultRow.promptSections.visualDirection,
-      ),
-      language: cleanText(promptSectionsRecord?.language, language || defaultRow.promptSections.language),
-      offer: cleanText(promptSectionsRecord?.offer, cta || defaultRow.promptSections.offer),
-    },
+    imageModelPrompt: cleanText(variantRecord.imageModelPrompt, defaultRow.imageModelPrompt),
   };
 };
 
@@ -473,17 +318,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const testGoal = cleanText(body?.testGoal);
     const variantCount = clampVariantCount(body?.variantCount);
-    const product = asRecord(body?.product);
-    const productName = cleanText(product?.name, "Product");
-    const productCategory = cleanText(product?.category, "General");
-    const productDescription = cleanText(product?.description);
-    const productTags = Array.isArray(product?.tags)
-      ? product.tags
-          .filter((tag): tag is string => typeof tag === "string")
-          .map((tag) => cleanText(tag))
-          .filter(Boolean)
-          .slice(0, 10)
-      : [];
 
     if (!testGoal || testGoal.length < 8) {
       return NextResponse.json(
@@ -494,10 +328,6 @@ export async function POST(request: NextRequest) {
 
     const userText = buildPlannerUserPrompt({
       testGoal,
-      productName,
-      productCategory,
-      productDescription,
-      productTags,
       variantCount,
     });
     const plannerSchema = buildCerebrasVariantPlanSchema(variantCount);

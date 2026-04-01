@@ -102,13 +102,6 @@ type UploadedSourceImage = {
 
 type PlannedVariant = {
   variantName?: string;
-  audience?: string;
-  painPoint?: string;
-  language?: string;
-  bodyCopy?: string;
-  cta?: string;
-  scene?: string;
-  words?: string;
   aspectRatio?: string;
   imageModelPrompt?: string;
 };
@@ -270,25 +263,14 @@ function withAlpha(color: string, alpha: number) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-function buildLocalImagePrompt(
-  source: DemoSource,
-  row: Pick<DemoRow, "variantName" | "audience" | "painPoint" | "language" | "bodyCopy" | "cta" | "scene" | "words">,
-  plannerPrompt: string,
-) {
+function buildLocalImagePrompt(source: DemoSource, variantName: string, plannerPrompt: string) {
   const parts = [
     `Create a premium ${source.category.toLowerCase()} advertising variation using the reference image as the base.`,
     `Source concept: ${source.descriptor}.`,
     plannerPrompt ? `Campaign brief: ${plannerPrompt}.` : "",
-    `Creative angle: ${row.variantName}.`,
-    `Audience: ${row.audience}.`,
-    `Pain point: ${row.painPoint}.`,
-    `Language: ${row.language}.`,
-    `Scene: ${row.scene}.`,
-    `Visual story: ${row.bodyCopy}.`,
-    `Keywords: ${row.words}.`,
-    `CTA energy: ${row.cta}.`,
-    "Keep the close facial crop, cheek cream application, soft skincare lighting, and proof-led ad composition consistent unless the variant explicitly changes them.",
-    "Treat model demographics as the intended test axis when requested: update age, gender presentation, and race only as directed while preserving realistic skin texture and editorial polish.",
+    `Variant label: ${variantName}.`,
+    "Keep framing, proof layout, product usage cues, and lighting stable while changing only the aspect explicitly requested in the campaign brief and variant label.",
+    "Do not introduce unrelated changes outside the requested axis.",
     "Keep the final image free of logos, watermarks, or interface chrome.",
   ];
 
@@ -411,7 +393,7 @@ function createVariantRow(
     ...rowBase,
     primaryColor: seed.primaryColor,
     accentColor: seed.accentColor,
-    promptText: buildLocalImagePrompt(source, rowBase, prompt),
+    promptText: buildLocalImagePrompt(source, rowBase.variantName, prompt),
     promptState: "idle",
     promptProvider: "local",
     promptError: null,
@@ -468,16 +450,6 @@ function cleanPlannerText(value: string | undefined, fallback: string) {
   return cleaned || fallback;
 }
 
-function normalizePlannerWords(value: string | undefined, fallback: string) {
-  const cleaned = cleanPlannerText(value, fallback);
-  return cleaned
-    .split(",")
-    .map((word) => word.trim())
-    .filter(Boolean)
-    .slice(0, 8)
-    .join(", ");
-}
-
 function createPlannedRow(
   variant: PlannedVariant,
   source: DemoSource,
@@ -488,25 +460,15 @@ function createPlannedRow(
 ): DemoRow {
   const paletteSeed = variantSeeds[index % variantSeeds.length] ?? variantSeeds[0];
   const variantName = cleanPlannerText(variant.variantName, `Variant ${index + 1}`);
-  const audience = cleanPlannerText(variant.audience, "Core target audience");
-  const painPoint = cleanPlannerText(variant.painPoint, "Primary pain point");
-  const language = cleanPlannerText(variant.language, "English");
-  const bodyCopy = cleanPlannerText(
-    variant.bodyCopy,
-    "Lead with one concrete product benefit and keep the message concise.",
-  );
-  const cta = cleanPlannerText(variant.cta, "Shop now");
-  const scene = cleanPlannerText(variant.scene, "Product-led studio setup with clear focal point");
-  const words = normalizePlannerWords(variant.words, "Benefit-first, High-contrast, Conversion-focused");
   const rowFields = {
     variantName,
-    audience,
-    painPoint,
-    language,
-    bodyCopy,
-    cta,
-    scene,
-    words,
+    audience: "Controlled axis sweep",
+    painPoint: "Change only the requested aspect",
+    language: "English",
+    bodyCopy: "Keep the core ad system fixed while varying only the requested axis.",
+    cta: "See results",
+    scene: "Keep the same framing, proof layout, product usage cues, and lighting.",
+    words: "Single-axis, Controlled, Product-first, Proof-led",
   };
 
   return {
@@ -514,7 +476,7 @@ function createPlannedRow(
     ...rowFields,
     primaryColor: existingRow?.primaryColor ?? paletteSeed.primaryColor,
     accentColor: existingRow?.accentColor ?? paletteSeed.accentColor,
-    promptText: cleanPlannerText(variant.imageModelPrompt, buildLocalImagePrompt(source, rowFields, plannerPrompt)),
+    promptText: cleanPlannerText(variant.imageModelPrompt, buildLocalImagePrompt(source, variantName, plannerPrompt)),
     promptState: "ready",
     promptProvider: "cerebras",
     promptError: null,
