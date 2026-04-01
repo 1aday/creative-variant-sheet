@@ -139,7 +139,7 @@ type GenerationJob = {
 const MAX_ROWS = 5;
 const MAX_PARALLEL_IMAGE_GENERATIONS = MAX_ROWS;
 const DEFAULT_PROMPT =
-  "Change the models race gender and age";
+  "Change race, gender, and age";
 const PLAN_REVEAL_BASE_DELAY_MS = 120;
 const PLAN_REVEAL_PER_GLYPH_MS = 16;
 const PLAN_REVEAL_MAX_DELAY_MS = 420;
@@ -149,7 +149,7 @@ const MAX_SOURCE_UPLOAD_DATA_URL_LENGTH = 3_500_000;
 const cardCompactTitleClass =
   "text-[0.92rem] font-semibold leading-[1.18] tracking-[-0.02em] text-[var(--ink-strong)]";
 const plannerInputClassName =
-  "h-12 w-full border border-[rgba(34,49,40,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,248,243,0.96))] px-4 text-[0.98rem] leading-none text-[var(--ink-strong)] outline-none transition placeholder:text-[rgba(47,58,49,0.58)] focus:border-[var(--accent-strong)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(91,145,111,0.18)]";
+  "h-12 w-full border border-[rgba(34,49,40,0.16)] bg-white px-4 text-[0.98rem] leading-none text-[var(--ink-strong)] outline-none shadow-[0_12px_24px_-22px_rgba(18,28,20,0.3)] transition placeholder:text-[rgba(47,58,49,0.52)] focus:border-[var(--accent-strong)] focus:shadow-[0_0_0_3px_rgba(91,145,111,0.14)]";
 
 const sourceOptions: DemoSource[] = [
   {
@@ -1569,8 +1569,11 @@ export function CreativeVariantsDemo() {
                     {row.imageUrl ? (
                       <Button
                         variant="outline"
+                        size="icon-xs"
                         onClick={() => handleUseRowAsNextRoundInput(row.id)}
-                        className={`type-button-label h-8 min-w-0 flex-1 rounded-none border px-2.5 text-[0.76rem] ${
+                        aria-label={isUsingRowAsSource ? "Using as source" : "Set source"}
+                        title={isUsingRowAsSource ? "Using as source" : "Set source"}
+                        className={`h-8 w-8 rounded-none border ${
                           isUsingRowAsSource
                             ? "border-[var(--accent-strong)] bg-[var(--surface-muted)] text-[var(--accent-strong)]"
                             : ""
@@ -1578,13 +1581,30 @@ export function CreativeVariantsDemo() {
                         disabled={isBusy}
                       >
                         <ArrowUp className="size-3.5" />
-                        {isUsingRowAsSource ? "Using as source" : "Set source"}
                       </Button>
                     ) : null}
                     <Button
                       onClick={() => void generateImageForRow(row.id)}
-                      className={`type-button-label ui-button-primary h-8 min-w-0 shrink-0 justify-center rounded-none px-3 text-[0.76rem] ${
-                        row.imageUrl ? "min-w-[118px]" : "flex-1"
+                      aria-label={
+                        row.imageUrl
+                          ? isRowQueuedForGeneration(row.id)
+                            ? "Queued"
+                            : row.status === "generated"
+                              ? "Regenerate"
+                              : "Generate"
+                          : undefined
+                      }
+                      title={
+                        row.imageUrl
+                          ? isRowQueuedForGeneration(row.id)
+                            ? "Queued"
+                            : row.status === "generated"
+                              ? "Regenerate"
+                              : "Generate"
+                          : undefined
+                      }
+                      className={`type-button-label ui-button-primary h-8 min-w-0 shrink-0 justify-center rounded-none text-[0.76rem] ${
+                        row.imageUrl ? "w-8 px-0" : "flex-1 px-3"
                       }`}
                       disabled={areGenerationControlsLocked || row.status === "generating" || isRowQueuedForGeneration(row.id)}
                     >
@@ -1597,11 +1617,13 @@ export function CreativeVariantsDemo() {
                       ) : (
                         <Wand2 className="size-3.5" />
                       )}
-                      {isRowQueuedForGeneration(row.id)
-                        ? "Queued"
-                        : row.status === "generated"
-                          ? "Regenerate"
-                          : "Generate"}
+                      {row.imageUrl
+                        ? null
+                        : isRowQueuedForGeneration(row.id)
+                          ? "Queued"
+                          : row.status === "generated"
+                            ? "Regenerate"
+                            : "Generate"}
                     </Button>
                   </div>
 
@@ -1619,54 +1641,52 @@ export function CreativeVariantsDemo() {
         </div>
       </div>
 
-      <div className="sticky top-3 z-20 border border-[rgba(86,116,92,0.72)] bg-[linear-gradient(180deg,#27372c_0%,#1e2a22_100%)] p-3 shadow-[0_28px_54px_-34px_rgba(8,12,9,0.72)] backdrop-blur-sm sm:top-4 sm:p-4">
-        <div className="space-y-2.5">
-          <p className="text-[1.02rem] font-semibold tracking-[-0.02em] text-[rgba(248,246,238,0.96)]">
-            What aspect of the creative to create variations of
+      <div className="sticky top-3 z-20 border border-[rgba(47,107,79,0.16)] bg-[linear-gradient(180deg,#eef3ea_0%,#e6ece1_100%)] p-3 shadow-[0_24px_48px_-34px_rgba(18,28,20,0.28)] backdrop-blur-sm sm:top-4 sm:p-4">
+        <div className="space-y-3">
+          <p className="text-[1rem] font-semibold tracking-[-0.02em] text-[var(--ink-strong)]">
+            What should change across the variants?
           </p>
 
-          <div className="overflow-hidden border border-[rgba(185,205,188,0.2)] bg-[linear-gradient(180deg,rgba(244,248,241,0.18),rgba(225,234,225,0.1))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <div className="flex flex-col lg:flex-row lg:items-stretch">
-              <label className="min-w-0 flex-1 p-2.5 sm:p-3">
-                <input
-                  type="text"
-                  value={plannerInput}
-                  onChange={(event) => setPlannerInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-                    event.preventDefault();
-                    void handlePlannerApply();
-                  }}
-                  className={plannerInputClassName}
-                  placeholder="Describe the next set of creative directions."
-                  disabled={isBusy}
-                />
-              </label>
+          <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
+            <label className="min-w-0 flex-1">
+              <input
+                type="text"
+                value={plannerInput}
+                onChange={(event) => setPlannerInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  void handlePlannerApply();
+                }}
+                className={plannerInputClassName}
+                placeholder="Describe the next set of creative directions."
+                disabled={isBusy}
+              />
+            </label>
 
-              <div className="grid gap-2 border-t border-[rgba(185,205,188,0.18)] bg-[rgba(244,248,241,0.08)] p-2.5 sm:grid-cols-2 sm:p-3 lg:w-[238px] lg:grid-cols-1 lg:border-l lg:border-t-0">
-                <Button
-                  onClick={() => void handlePlannerApply()}
-                  className="type-button-label ui-button-primary h-10 w-full justify-center rounded-none px-4"
-                  disabled={isBusy}
-                >
-                  {isPlanning ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  {isPlanning ? "Creating prompts..." : isPlanRevealing ? "Revealing..." : "Create prompts"}
-                </Button>
+            <div className="grid gap-2 sm:grid-cols-2 xl:w-auto xl:grid-cols-2 xl:shrink-0">
+              <Button
+                onClick={() => void handlePlannerApply()}
+                className="type-button-label ui-button-primary h-12 min-w-[172px] justify-center rounded-none px-5"
+                disabled={isBusy}
+              >
+                {isPlanning ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {isPlanning ? "Creating prompts..." : isPlanRevealing ? "Revealing..." : "Create prompts"}
+              </Button>
 
-                <Button
-                  variant="outline"
-                  onClick={() => void handleGenerateAll()}
-                  className="type-button-label ui-button-secondary h-10 w-full justify-center rounded-none border bg-[rgba(247,249,244,0.9)] px-4"
-                  disabled={!rows.length || areGenerationControlsLocked || !hasRowsReadyToGenerate}
-                >
-                  {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-                  {isGeneratingAll ? "Generating..." : "Generate all"}
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => void handleGenerateAll()}
+                className="type-button-label h-12 min-w-[172px] justify-center rounded-none border border-[rgba(34,49,40,0.16)] bg-[rgba(255,255,255,0.88)] px-5 text-[var(--ink-strong)] hover:bg-white"
+                disabled={!rows.length || areGenerationControlsLocked || !hasRowsReadyToGenerate}
+              >
+                {isGeneratingAll ? <LoaderCircle className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+                {isGeneratingAll ? "Generating..." : "Generate all"}
+              </Button>
             </div>
           </div>
 
-          <p className="text-sm text-[rgba(222,231,221,0.82)]">
+          <p className="type-section-copy text-sm">
             Press Enter to run.
           </p>
         </div>
